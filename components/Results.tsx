@@ -7,6 +7,9 @@ import { PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer } fro
 import { DISCLAIMER, SLIDERS, TRAIT_META, TRAIT_ORDER, archetype, band, type Scores } from "@/lib/scoring";
 import { INSIGHTS } from "@/lib/insights";
 
+// HIER DEINEN ECHTEN WHOP CHECKOUT LINK EINTRAGEN:
+const WHOP_CHECKOUT_URL = "https://whop.com/checkout/YOUR_PRODUCT_ID";
+
 type Report = {
   executiveSummary?: string;
   traitInteractions?: string[];
@@ -64,19 +67,6 @@ function SectionHeader({ n, icon, title, sub, tone, pageBreak = false }: { n: nu
         <p className="text-sm text-slate-500">{sub}</p>
       </div>
     </Reveal>
-  );
-}
-
-function Bullets({ items, dot }: { items: string[]; dot: string }) {
-  return (
-    <ul className="space-y-2.5 text-sm text-slate-700">
-      {items.map((t, i) => (
-        <li key={i} className="flex gap-2.5">
-          <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${dot}`} />
-          <span>{t}</span>
-        </li>
-      ))}
-    </ul>
   );
 }
 
@@ -169,8 +159,19 @@ export default function Results({
   const [report, setReport] = useState<Report | null>(null);
   const [status, setStatus] = useState<"loading" | "done" | "error">("loading");
   const [errMsg, setErrMsg] = useState("");
+  const [isUnlocked, setIsUnlocked] = useState(false);
   const started = useRef(false);
   const arch = archetype(scores);
+
+  // Prüfen, ob der Nutzer aus dem Whop Checkout mit ?paid=true zurückgeleitet wurde
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("paid") === "true") {
+        setIsUnlocked(true);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     confetti({ particleCount: 150, spread: 90, origin: { y: 0.25 } });
@@ -210,7 +211,7 @@ export default function Results({
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8">
-      {/* SEITE 1: Hero, Executive Summary & OCEAN */}
+      {/* SEITE 1: Hero, Executive Summary & OCEAN (IMMER KOSTENLOS SICHTBAR) */}
       <motion.div
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -269,7 +270,7 @@ export default function Results({
         </Reveal>
       </div>
 
-      {/* SEITE 2: Trait Breakdown, Workspace Style & Thrive Zones */}
+      {/* SEITE 2: Trait Breakdown & Workspace Style (EBENFALLS FREI SICHTBAR) */}
       <div className="print:break-before-page">
         <Reveal className={`${card} mt-5`}>
           <p className="mb-5 text-[11px] font-bold uppercase tracking-wider text-slate-500">Trait breakdown</p>
@@ -321,103 +322,129 @@ export default function Results({
             })}
           </div>
         </Reveal>
-
-        {status === "loading" && <Loading />}
-        {status === "error" && (
-          <div className="mt-10 rounded-3xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-900">
-            The personal AI report is not available right now ({errMsg}). Your scores above are still complete.
-          </div>
-        )}
-
-        {report && (
-          <>
-            {/* Thrive Zones auf Seite 2 mit hochgezogen */}
-            <SectionHeader n={3} icon="🚀" title="Workplace & Life Thrive Zones" sub="Where your engine runs at full speed" tone="emerald" />
-            <div className="grid gap-4 md:grid-cols-3 print:grid-cols-3">
-              {(report.thriveZones ?? []).map((z, i) => (
-                <Reveal key={i} className={card}>
-                  <p className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-emerald-600">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500" /> Thrive zone #{i + 1}
-                  </p>
-                  <p className="mb-4 text-lg font-extrabold leading-snug text-slate-900">{z.title}</p>
-                  <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">Ideal role</p>
-                  <p className="mb-4 text-sm text-slate-700">{z.idealRole}</p>
-                  <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">Deep work conditions</p>
-                  <p className="text-sm text-slate-700">{z.deepWork}</p>
-                </Reveal>
-              ))}
-            </div>
-          </>
-        )}
       </div>
 
-      {report && (
-        <>
-          {/* SEITE 3: Friction & Challenge Zones */}
-          <SectionHeader n={4} icon="⚠️" title="Friction & Challenge Zones" sub="Behavioural pitfalls, and 3 actionable moves each" tone="amber" pageBreak />
-          <div className="grid gap-4 md:grid-cols-3 print:grid-cols-1">
-            {(report.frictionPoints ?? []).map((f, i) => (
-              <Reveal key={i} className={card}>
-                <p className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-amber-600">
-                  <span className="h-2 w-2 rounded-full bg-amber-500" /> Friction #{i + 1}
-                </p>
-                <p className="mb-4 font-extrabold leading-snug text-slate-900">{f.issue}</p>
-                <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">Communication blind spot</p>
-                <p className="mb-4 text-sm text-slate-700">{f.blindSpot}</p>
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-amber-700">Mitigation strategies</p>
-                  <ul className="space-y-2 text-sm text-slate-700">
-                    {(f.strategies ?? []).map((s, j) => (
-                      <li key={j} className="flex gap-2"><span className="font-bold text-amber-600">✓</span><span>{s}</span></li>
-                    ))}
-                  </ul>
-                </div>
-              </Reveal>
-            ))}
+      {/* ======================================================== */}
+      {/* AB HIER: DIE PAYWALL / PREMIUM INHALTE                   */}
+      {/* ======================================================== */}
+      <div className="relative mt-8">
+        {!isUnlocked && (
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-start pt-16 bg-gradient-to-b from-white/40 via-white/95 to-white backdrop-blur-md rounded-3xl p-6 text-center">
+            <div className="max-w-md rounded-3xl border border-violet-100 bg-white/90 p-8 shadow-2xl backdrop-blur-xl">
+              <span className="mb-3 inline-block text-4xl">🔒</span>
+              <h3 className="mb-2 text-2xl font-black text-slate-900">Unlock Your Full Blueprint</h3>
+              <p className="mb-6 text-sm leading-relaxed text-slate-600">
+                Get immediate access to your personalized <strong>37-Day Action Plan</strong>, <strong>Thrive &amp; Friction Zones</strong>, and tailored <strong>Geographical Fit Analysis</strong>.
+              </p>
+              <a
+                href={WHOP_CHECKOUT_URL}
+                className="block w-full rounded-2xl bg-gradient-to-r from-violet-600 via-fuchsia-500 to-amber-500 py-4 text-center font-extrabold text-white shadow-xl shadow-violet-300 hover:opacity-95 transition-opacity"
+              >
+                Unlock Full Access for $20 →
+              </a>
+              <p className="mt-3 text-xs text-slate-400">One-time payment · Instant access</p>
+            </div>
           </div>
+        )}
 
-          {/* SEITE 4: Geographical & Cultural Alignment */}
-          <SectionHeader n={5} icon="🌍" title="Geographical & Cultural Alignment" sub="Three cultures that may match your values, pacing and norms (loose suggestions)" tone="fuchsia" pageBreak />
-          <div className="grid gap-4 md:grid-cols-3 print:grid-cols-1">
-            {(report.countries ?? []).map((c, i) => (
-              <Reveal key={i} className={card}>
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="text-xl font-extrabold text-slate-900">{c.name}</p>
-                  <span className="rounded-full border border-fuchsia-200 bg-fuchsia-50 px-3 py-1 text-xs font-bold text-fuchsia-700">{c.fit}% fit</span>
-                </div>
-                <div className="mb-4 h-2 overflow-hidden rounded-full bg-fuchsia-100">
-                  <motion.div
-                    className="h-full rounded-full bg-gradient-to-r from-fuchsia-500 to-violet-500"
-                    initial={{ width: 0 }}
-                    whileInView={{ width: `${c.fit}%` }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 1 }}
-                  />
-                </div>
-                {([["Values alignment", c.values], ["Pacing match", c.pacing], ["Social norms", c.norms]] as const).map(([label, text]) => (
-                  <div key={label} className="mb-3 last:mb-0">
-                    <p className="mb-0.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
-                    <p className="text-sm text-slate-700">{text}</p>
-                  </div>
+        {/* Die geschützten Abschnitte (werden verschwommen angezeigt, wenn isUnlocked === false) */}
+        <div className={!isUnlocked ? "blur-md select-none pointer-events-none opacity-40 max-h-[500px] overflow-hidden" : ""}>
+          {status === "loading" && <Loading />}
+          {status === "error" && (
+            <div className="mt-10 rounded-3xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-900">
+              The personal report is not available right now ({errMsg}). Your scores above are still complete.
+            </div>
+          )}
+
+          {report && (
+            <>
+              {/* Thrive Zones */}
+              <SectionHeader n={3} icon="🚀" title="Workplace & Life Thrive Zones" sub="Where your engine runs at full speed" tone="emerald" />
+              <div className="grid gap-4 md:grid-cols-3 print:grid-cols-3">
+                {(report.thriveZones ?? []).map((z, i) => (
+                  <Reveal key={i} className={card}>
+                    <p className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-emerald-600">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500" /> Thrive zone #{i + 1}
+                    </p>
+                    <p className="mb-4 text-lg font-extrabold leading-snug text-slate-900">{z.title}</p>
+                    <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">Ideal role</p>
+                    <p className="mb-4 text-sm text-slate-700">{z.idealRole}</p>
+                    <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">Deep work conditions</p>
+                    <p className="text-sm text-slate-700">{z.deepWork}</p>
+                  </Reveal>
                 ))}
-              </Reveal>
-            ))}
-          </div>
+              </div>
 
-          {/* SEITE 5: 7-Day Action Blueprint */}
-          <SectionHeader n={6} icon="📅" title="7-Day Action Blueprint" sub="Micro-habits tuned to your profile: one week, tiny moves" tone="teal" pageBreak />
-          <SevenDays plan={report.sevenDayPlan ?? []} />
-        </>
-      )}
+              {/* Friction Zones */}
+              <SectionHeader n={4} icon="⚠️" title="Friction & Challenge Zones" sub="Behavioural pitfalls, and 3 actionable moves each" tone="amber" pageBreak />
+              <div className="grid gap-4 md:grid-cols-3 print:grid-cols-1">
+                {(report.frictionPoints ?? []).map((f, i) => (
+                  <Reveal key={i} className={card}>
+                    <p className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-amber-600">
+                      <span className="h-2 w-2 rounded-full bg-amber-500" /> Friction #{i + 1}
+                    </p>
+                    <p className="mb-4 font-extrabold leading-snug text-slate-900">{f.issue}</p>
+                    <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">Communication blind spot</p>
+                    <p className="mb-4 text-sm text-slate-700">{f.blindSpot}</p>
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                      <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-amber-700">Mitigation strategies</p>
+                      <ul className="space-y-2 text-sm text-slate-700">
+                        {(f.strategies ?? []).map((s, j) => (
+                          <li key={j} className="flex gap-2"><span className="font-bold text-amber-600">✓</span><span>{s}</span></li>
+                        ))}
+                      </ul>
+                    </div>
+                  </Reveal>
+                ))}
+              </div>
+
+              {/* Geographical Alignment */}
+              <SectionHeader n={5} icon="🌍" title="Geographical & Cultural Alignment" sub="Three cultures that may match your values, pacing and norms" tone="fuchsia" pageBreak />
+              <div className="grid gap-4 md:grid-cols-3 print:grid-cols-1">
+                {(report.countries ?? []).map((c, i) => (
+                  <Reveal key={i} className={card}>
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-xl font-extrabold text-slate-900">{c.name}</p>
+                      <span className="rounded-full border border-fuchsia-200 bg-fuchsia-50 px-3 py-1 text-xs font-bold text-fuchsia-700">{c.fit}% fit</span>
+                    </div>
+                    <div className="mb-4 h-2 overflow-hidden rounded-full bg-fuchsia-100">
+                      <motion.div
+                        className="h-full rounded-full bg-gradient-to-r from-fuchsia-500 to-violet-500"
+                        initial={{ width: 0 }}
+                        whileInView={{ width: `${c.fit}%` }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 1 }}
+                      />
+                    </div>
+                    {([["Values alignment", c.values], ["Pacing match", c.pacing], ["Social norms", c.norms]] as const).map(([label, text]) => (
+                      <div key={label} className="mb-3 last:mb-0">
+                        <p className="mb-0.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+                        <p className="text-sm text-slate-700">{text}</p>
+                      </div>
+                    ))}
+                  </Reveal>
+                ))}
+              </div>
+
+              {/* 7-Day Plan */}
+              <SectionHeader n={6} icon="📅" title="37-Day Action Blueprint" sub="Micro-habits tuned to your profile" tone="teal" pageBreak />
+              <SevenDays plan={report.sevenDayPlan ?? []} />
+            </>
+          )}
+        </div>
+      </div>
 
       <p className="mt-12 text-center text-xs text-slate-400">{DISCLAIMER}</p>
 
+      {/* FOOTER BUTTONS */}
       <div className="mt-6 flex flex-col gap-3 sm:flex-row print:hidden">
-        <button type="button" onClick={printPdf} className="flex-1 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-500 py-3.5 font-bold text-white shadow-lg shadow-violet-300">
-          Download as PDF
-        </button>
+        {isUnlocked && (
+          <button type="button" onClick={printPdf} className="flex-1 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-500 py-3.5 font-bold text-white shadow-lg shadow-violet-300">
+            Download as PDF
+          </button>
+        )}
         <button type="button" onClick={onRetake} className="flex-1 rounded-2xl border border-slate-200 bg-white py-3.5 font-semibold text-slate-600 hover:bg-slate-50">
-          Retake
+          Retake Assessment
         </button>
       </div>
     </div>
