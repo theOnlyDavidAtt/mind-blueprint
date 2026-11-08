@@ -1,0 +1,389 @@
+{
+ "meta": {
+  "title": "Mind & Potential Architect – Question Bank v1",
+  "language": "en",
+  "instruction_for_builder": "Use these questions EXACTLY as written. Do not invent, rewrite, add or remove items. Implement scoring exactly as specified in 'scoring'. Randomize item order within each section (but keep sections in order).",
+  "big5_source": "IPIP Big-Five Factor Markers (Goldberg), public domain: https://ipip.ori.org",
+  "disclaimer": "For self-reflection and personal development only. Not a clinical, diagnostic or hiring tool. DISC/Jung/Spranger-inspired; not affiliated with any commercial assessment provider."
+ },
+ "tier1": {
+  "big5": {
+   "scale": {
+    "min": 1,
+    "max": 5,
+    "labels": [
+     "Very inaccurate",
+     "Moderately inaccurate",
+     "Neither",
+     "Moderately accurate",
+     "Very accurate"
+    ]
+   },
+   "prompt": "Describe yourself as you generally are now.",
+   "items": [
+    {
+     "id": "B01",
+     "trait": "E",
+     "text": "I am the life of the party.",
+     "key": 1
+    },
+    {
+     "id": "B02",
+     "trait": "E",
+     "text": "I don't talk a lot.",
+     "key": -1
+    },
+    {
+     "id": "B03",
+     "trait": "E",
+     "text": "I feel comfortable around people.",
+     "key": 1
+    },
+    {
+     "id": "B04",
+     "trait": "E",
+     "text": "I keep in the background.",
+     "key": -1
+    },
+    {
+     "id": "B05",
+     "trait": "E",
+     "text": "I start conversations.",
+     "key": 1
+    },
+    {
+     "id": "B06",
+     "trait": "E",
+     "text": "I have little to say.",
+     "key": -1
+    },
+    {
+     "id": "B07",
+     "trait": "E",
+     "text": "I talk to a lot of different people at parties.",
+     "key": 1
+    },
+    {
+     "id": "B08",
+     "trait": "E",
+     "text": "I don't like to draw attention to myself.",
+     "key": -1
+    },
+    {
+     "id": "B09",
+     "trait": "E",
+     "text": "I don't mind being the center of attention.",
+     "key": 1
+    },
+    {
+     "id": "B10",
+     "trait": "E",
+     "text": "I am quiet around strangers.",
+     "key": -1
+    },
+    {
+     "id": "B11",
+     "trait": "A",
+     "text": "I feel little concern for others.",
+     "key": -1
+    },
+    {
+     "id": "B12",
+     "trait": "A",
+     "text": "I am interested in people.",
+     "key": 1
+    },
+    {
+     "id": "B13",
+     "trait": "A",
+     "text": "I insult people.",
+     "key": -1
+    },
+    {
+     "id": "B14",
+     "trait": "A",
+     "text": "I sympathize with others' feelings.",
+     "key": 1
+    },
+    {
+     "id": "B15",
+     "trait": "A",
+     "text": "I am not interested in other people's problems.",
+     "key": -1
+    },
+    {
+     "id": "B16",
+     "trait": "A",
+     "text": "I have a soft heart.",
+     "key": 1
+    },
+    {
+     "id": "B17",
+     "trait": "A",
+     "text": "I am not really interested in others.",
+     "key": -1
+    },
+    {
+     "id": "B18",
+     "trait": "A",
+     "text": "I take time out for others.",
+     "key": 1
+    },
+    {
+     "id": "B19",
+     "trait": "A",
+     "text": "I feel others' emotions.",
+     "key": 1
+    },
+    {
+     "id": "B20",
+     "trait": "A",
+     "text": "I make people feel at ease.",
+     "key": 1
+    },
+    {
+     "id": "B21",
+     "trait": "C",
+     "text": "I am always prepared.",
+     "key": 1
+    },
+    {
+     "id": "B22",
+     "trait": "C",
+     "text": "I leave my belongings around.",
+     "key": -1
+    },
+    {
+     "id": "B23",
+     "trait": "C",
+     "text": "I pay attention to details.",
+     "key": 1
+    },
+    {
+     "id": "B24",
+     "trait": "C",
+     "text": "I make a mess of things.",
+     "key": -1
+    },
+    {
+     "id": "B25",
+     "trait": "C",
+     "text": "I get chores done right away.",
+     "key": 1
+    },
+    {
+     "id": "B26",
+     "trait": "C",
+     "text": "I often forget to put things back in their proper place.",
+     "key": -1
+    },
+    {
+     "id": "B27",
+     "trait": "C",
+     "text": "I like order.",
+     "key": 1
+    },
+    {
+     "id": "B28",
+     "trait": "C",
+     "text": "I shirk my duties.",
+     "key": -1
+    },
+    {
+     "id": "B29",
+     "trait": "C",
+     "text": "I follow a schedule.",
+     "key": 1
+    },
+    {
+     "id": "B30",
+     "trait": "C",
+     "text": "I am exacting in my work.",
+     "key": 1
+    },
+    {
+     "id": "B31",
+     "trait": "N",
+     "text": "I get stressed out easily.",
+     "key": 1
+    },
+    {
+     "id": "B32",
+     "trait": "N",
+     "text": "I am relaxed most of the time.",
+     "key": -1
+    },
+    {
+     "id": "B33",
+     "trait": "N",
+     "text": "I worry about things.",
+     "key": 1
+    },
+    {
+     "id": "B34",
+     "trait": "N",
+     "text": "I seldom feel blue.",
+     "key": -1
+    },
+    {
+     "id": "B35",
+     "trait": "N",
+     "text": "I am easily disturbed.",
+     "key": 1
+    },
+    {
+     "id": "B36",
+     "trait": "N",
+     "text": "I get upset easily.",
+     "key": 1
+    },
+    {
+     "id": "B37",
+     "trait": "N",
+     "text": "I change my mood a lot.",
+     "key": 1
+    },
+    {
+     "id": "B38",
+     "trait": "N",
+     "text": "I have frequent mood swings.",
+     "key": 1
+    },
+    {
+     "id": "B39",
+     "trait": "N",
+     "text": "I get irritated easily.",
+     "key": 1
+    },
+    {
+     "id": "B40",
+     "trait": "N",
+     "text": "I often feel blue.",
+     "key": 1
+    },
+    {
+     "id": "B41",
+     "trait": "O",
+     "text": "I have a rich vocabulary.",
+     "key": 1
+    },
+    {
+     "id": "B42",
+     "trait": "O",
+     "text": "I have difficulty understanding abstract ideas.",
+     "key": -1
+    },
+    {
+     "id": "B43",
+     "trait": "O",
+     "text": "I have a vivid imagination.",
+     "key": 1
+    },
+    {
+     "id": "B44",
+     "trait": "O",
+     "text": "I am not interested in abstract ideas.",
+     "key": -1
+    },
+    {
+     "id": "B45",
+     "trait": "O",
+     "text": "I have excellent ideas.",
+     "key": 1
+    },
+    {
+     "id": "B46",
+     "trait": "O",
+     "text": "I do not have a good imagination.",
+     "key": -1
+    },
+    {
+     "id": "B47",
+     "trait": "O",
+     "text": "I am quick to understand things.",
+     "key": 1
+    },
+    {
+     "id": "B48",
+     "trait": "O",
+     "text": "I use difficult words.",
+     "key": 1
+    },
+    {
+     "id": "B49",
+     "trait": "O",
+     "text": "I spend time reflecting on things.",
+     "key": 1
+    },
+    {
+     "id": "B50",
+     "trait": "O",
+     "text": "I am full of ideas.",
+     "key": 1
+    }
+   ]
+  },
+  "sliders": [
+   {
+    "id": "S1",
+    "dimension": "Autonomy vs. Structure",
+    "left_label": "I work best with full freedom and self-direction",
+    "right_label": "I work best with clear structure and guidance",
+    "range": [
+     0,
+     100
+    ],
+    "default": 50,
+    "note": "0 = left pole, 100 = right pole"
+   },
+   {
+    "id": "S2",
+    "dimension": "Pace",
+    "left_label": "I thrive on fast, high-stimulation environments",
+    "right_label": "I prefer a slow, methodical, careful pace",
+    "range": [
+     0,
+     100
+    ],
+    "default": 50,
+    "note": "0 = left pole, 100 = right pole"
+   },
+   {
+    "id": "S3",
+    "dimension": "Collaboration vs. Solo",
+    "left_label": "I do my best work in close collaboration",
+    "right_label": "I do my best work independently and alone",
+    "range": [
+     0,
+     100
+    ],
+    "default": 50,
+    "note": "0 = left pole, 100 = right pole"
+   },
+   {
+    "id": "S4",
+    "dimension": "Scope",
+    "left_label": "I focus on routine and detail",
+    "right_label": "I focus on the broad scope and big picture",
+    "range": [
+     0,
+     100
+    ],
+    "default": 50,
+    "note": "0 = left pole, 100 = right pole"
+   },
+   {
+    "id": "S5",
+    "dimension": "Decision style",
+    "left_label": "I prefer consensus-driven decisions",
+    "right_label": "I prefer direct, assertive decisions",
+    "range": [
+     0,
+     100
+    ],
+    "default": 50,
+    "note": "0 = left pole, 100 = right pole"
+   }
+  ]
+ }
+}
