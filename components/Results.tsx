@@ -34,12 +34,12 @@ const card =
   "break-inside-avoid rounded-3xl border border-slate-200/80 bg-white p-8 shadow-sm shadow-slate-200/50 print:p-5 print:shadow-none";
 
 /**
- * PRINT_ROOT_PX ist der einzige "Regler" für die PDF-Schriftgröße.
- * Alle Tailwind-Größen (rem) skalieren damit mit.
- *  - Seite läuft über (Inhalt rutscht auf Folgeseite)  -> 15
- *  - Seite ist zu leer                                  -> 17
+ * Schriftgröße im PDF. Die Basis passt sich automatisch der echten Druckbreite an
+ * (100vw), dadurch füllt die Seite immer die ganze Papierbreite.
+ *  - Seite läuft unten über      -> 0.94
+ *  - Seite ist noch zu leer      -> 1.05
  */
-const PRINT_ROOT_PX = 16;
+const PRINT_FONT_SCALE = 1;
 
 /**
  * Druck-Layout: jede "Seite" ist exakt ein A4-Blatt (210 x 296 mm).
@@ -60,30 +60,34 @@ const LAYOUT_CSS = `
   .grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
 @page{size:A4 portrait;margin:0}
+.recharts-polar-angle-axis text{font-size:0.95rem!important}
 @media print{
-  html{font-size:${PRINT_ROOT_PX}px}
-  html,body{width:210mm;margin:0;background:#f5f3ff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  /* 794px = A4-Breite bei 96dpi; 16px Basis -> 100vw/49.625 */
+  html{font-size:16px;font-size:calc(100vw / 49.625 * ${PRINT_FONT_SCALE})}
+  html,body{width:100%;margin:0;background:#f5f3ff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  canvas{display:none!important}
   .pdf-page{
-    width:210mm;height:296mm;box-sizing:border-box;padding:10mm 12mm 14mm;gap:5mm;margin:0;
+    width:100%;aspect-ratio:210/296;min-height:0;box-sizing:border-box;
+    padding:3.8% 5.7% 4.8%;gap:1.1rem;margin:0;
     background:#f5f3ff;overflow:visible;
     break-after:page;page-break-after:always;break-inside:avoid;
   }
   .pdf-page:last-of-type{break-after:auto;page-break-after:auto}
-  .grid-2{grid-template-columns:repeat(2,minmax(0,1fr));gap:4mm}
-  .grid-3{grid-template-columns:minmax(0,1fr);gap:5mm}
+  .grid-2{grid-template-columns:repeat(2,minmax(0,1fr));gap:0.95rem}
+  .grid-3{grid-template-columns:minmax(0,1fr);gap:1.1rem}
   /* drei gleich hohe Karten übereinander, füllen den Rest der Seite */
   .stack{flex:1 1 0;min-height:0;grid-template-rows:repeat(3,minmax(auto,1fr))}
   .stack>*{display:flex;flex-direction:column;justify-content:center;margin:0!important}
-  .in-2{grid-template-columns:repeat(2,minmax(0,1fr));gap:6mm}
-  .in-3{grid-template-columns:repeat(3,minmax(0,1fr));gap:5mm}
-  .in-fr{grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:6mm}
+  .in-2{grid-template-columns:repeat(2,minmax(0,1fr));gap:1.4rem}
+  .in-3{grid-template-columns:repeat(3,minmax(0,1fr));gap:1.2rem}
+  .in-fr{grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:1.3rem}
   .grow{flex:1 1 0;min-height:0}
   .fill{flex:1 1 0;min-height:0;display:flex;flex-direction:column}
   .spread{flex:1 1 auto;align-content:space-evenly}
-  .week{flex:1 1 0;min-height:0;grid-auto-rows:auto;align-content:space-between;gap:4mm}
+  .week{flex:1 1 0;min-height:0;grid-auto-rows:auto;align-content:space-between;gap:0.8rem}
   .week>*{margin:0!important}
   .week>*:last-child:nth-child(odd){grid-column:span 2}
-  .print-fixed-footer{position:fixed;left:0;right:0;bottom:4mm;padding:0 12mm;text-align:center}
+  .print-fixed-footer{position:fixed;left:0;right:0;bottom:0.7rem;padding:0 5.7%;text-align:center}
   /* Reveal-Animationen dürfen im PDF nie "unsichtbar" hängen bleiben */
   div[style*="opacity"]{opacity:1!important;transform:none!important}
 }
@@ -210,8 +214,8 @@ function SevenDays({ plan }: { plan: { theme: string; tasks: string[] }[] }) {
       </Reveal>
       <div className="grid-2 week">
         {plan.map((d, di) => (
-          <Reveal key={di} className={`${card} print:p-4`}>
-            <div className="mb-2.5 flex items-center justify-between">
+          <Reveal key={di} className={`${card} print:px-4 print:py-3`}>
+            <div className="mb-2.5 flex items-center justify-between print:mb-1.5">
               <p className="text-sm font-bold uppercase tracking-wider text-teal-700 print:text-[0.8rem]">
                 Day {di + 1} · {days[di] ?? ""}
               </p>
@@ -219,7 +223,7 @@ function SevenDays({ plan }: { plan: { theme: string; tasks: string[] }[] }) {
                 {d.theme}
               </span>
             </div>
-            <div className="space-y-3 print:space-y-2">
+            <div className="space-y-3 print:space-y-1.5">
               {d.tasks.map((t, ti) => {
                 const key = `${di}-${ti}`;
                 const on = !!done[key];
@@ -234,7 +238,7 @@ function SevenDays({ plan }: { plan: { theme: string; tasks: string[] }[] }) {
                       {on ? "✓" : ""}
                     </motion.span>
                     <span
-                      className={`text-base leading-snug print:text-[0.82rem] ${
+                      className={`text-base leading-snug print:text-[0.78rem] ${
                         on ? "text-slate-400 line-through" : "text-slate-700"
                       }`}
                     >
@@ -433,7 +437,7 @@ export default function Results({
   );
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-8 print:m-0 print:w-[210mm] print:max-w-none print:p-0">
+    <div className="mx-auto w-full max-w-5xl px-4 py-8 print:m-0 print:w-full print:max-w-none print:overflow-visible print:p-0">
       <style>{LAYOUT_CSS}</style>
 
       {/* ================= SEITE 1: Deckblatt ================= */}
@@ -646,23 +650,23 @@ export default function Results({
             />
             <div className="grid-3 stack">
               {(report.frictionPoints ?? []).map((f, i) => (
-                <Reveal key={i} className={`${card} print:px-6 print:py-5`}>
-                  <p className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-600 print:text-[0.8rem]">
+                <Reveal key={i} className={`${card} print:px-6 print:py-4`}>
+                  <p className="mb-1.5 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-600 print:text-[0.8rem]">
                     <span className="h-2.5 w-2.5 rounded-full bg-amber-500" /> Friction #{i + 1}
                   </p>
-                  <p className="mb-3 text-base font-extrabold leading-snug text-slate-900 print:text-[1.3rem]">{f.issue}</p>
+                  <p className="mb-2 text-base font-extrabold leading-snug text-slate-900 print:text-[1.2rem]">{f.issue}</p>
                   <div className="in-fr">
                     <div>
                       <p className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400 print:text-[0.75rem]">
                         Communication blind spot
                       </p>
-                      <p className="mb-3 text-sm text-slate-700 print:mb-0 print:text-[0.9rem] print:leading-relaxed">{f.blindSpot}</p>
+                      <p className="mb-3 text-sm text-slate-700 print:mb-0 print:text-[0.88rem] print:leading-snug">{f.blindSpot}</p>
                     </div>
-                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 print:p-3.5">
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 print:p-3">
                       <p className="mb-2 text-xs font-bold uppercase tracking-wider text-amber-700 print:text-[0.75rem]">
                         Mitigation strategies
                       </p>
-                      <ul className="space-y-2 text-sm text-slate-700 print:space-y-1.5 print:text-[0.85rem] print:leading-snug">
+                      <ul className="space-y-2 text-sm text-slate-700 print:space-y-1 print:text-[0.82rem] print:leading-snug">
                         {(f.strategies ?? []).map((s, j) => (
                           <li key={j} className="flex gap-2">
                             <span className="text-base font-bold text-amber-600">✓</span>
