@@ -283,7 +283,7 @@ export default function Results({
               <span className="mb-3 inline-block text-4xl">🔒</span>
               <h3 className="mb-2 text-2xl font-black text-slate-900">Unlock Your Full Blueprint</h3>
               <p className="mb-6 text-sm leading-relaxed text-slate-600">
-                Get immediate access to your <strong>Executive Summary</strong>, <strong>Trait Breakdowns</strong>, <strong>37-Day Action Plan</strong>, and <strong>Thrive Zones</strong>.
+                Get immediate access to your <strong>Executive Summary</strong>, <strong>Trait Breakdowns</strong>, <strong>7-Day Action Plan</strong>, and <strong>Thrive Zones</strong>.
               </p>
               <a
                 href={WHOP_CHECKOUT_URL}
@@ -457,7 +457,7 @@ export default function Results({
               </div>
 
               {/* 7-Day Plan */}
-              <SectionHeader n={6} icon="📅" title="37-Day Action Blueprint" sub="Micro-habits tuned to your profile" tone="teal" pageBreak />
+              <SectionHeader n={6} icon="📅" title="7-Day Action Blueprint" sub="Micro-habits tuned to your profile" tone="teal" pageBreak />
               <SevenDays plan={report.sevenDayPlan ?? []} />
             </>
           )}
