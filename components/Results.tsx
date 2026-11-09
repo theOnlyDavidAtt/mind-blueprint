@@ -57,7 +57,7 @@ function Reveal({ children, className = "" }: { children: React.ReactNode; class
 
 function SectionHeader({ n, icon, title, sub, tone }: { n: number; icon: string; title: string; sub: string; tone: Tone }) {
   return (
-    <Reveal className="mb-4 mt-12 flex break-after-avoid items-center gap-4 print:mt-8 print:mb-4 print:break-after-avoid">
+    <Reveal className="mb-4 mt-12 flex break-after-avoid items-center gap-4 print:mt-6 print:mb-4 print:break-after-avoid">
       <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border text-2xl ${TONES[tone].tile}`}>{icon}</div>
       <div>
         <p className={`text-[11px] font-bold uppercase tracking-[0.2em] ${TONES[tone].label}`}>Section {String(n).padStart(2, "0")}</p>
@@ -318,13 +318,13 @@ export default function Results({
       <motion.div
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="break-inside-avoid rounded-[2rem] bg-gradient-to-br from-violet-600 via-fuchsia-500 to-amber-400 p-8 text-center text-white shadow-2xl shadow-violet-300 sm:p-12 print:p-6 print:mb-6 print:shadow-none print:break-inside-avoid"
+        className="break-inside-avoid rounded-[2rem] bg-gradient-to-br from-violet-600 via-fuchsia-500 to-amber-400 p-8 text-center text-white shadow-2xl shadow-violet-300 sm:p-12 print:p-8 print:mb-6 print:shadow-none print:break-inside-avoid"
       >
         <p className="mb-2 text-xs font-bold uppercase tracking-[0.3em] text-white/80">Your profile type</p>
-        <motion.div animate={{ y: [0, -8, 0] }} transition={{ repeat: Infinity, duration: 2.5 }} className="mb-1 text-6xl print:text-4xl">
+        <motion.div animate={{ y: [0, -8, 0] }} transition={{ repeat: Infinity, duration: 2.5 }} className="mb-2 text-7xl print:text-5xl">
           {arch.emoji}
         </motion.div>
-        <h1 className="mb-4 text-3xl font-extrabold sm:text-5xl print:mb-2 print:text-3xl">{arch.title}</h1>
+        <h1 className="mb-4 text-3xl font-extrabold sm:text-5xl print:mb-3 print:text-4xl">{arch.title}</h1>
         <div className="flex flex-wrap justify-center gap-2">
           {arch.top.map((k) => (
             <span key={k} className="rounded-full bg-white/20 px-4 py-1.5 text-sm font-semibold backdrop-blur">
@@ -338,15 +338,15 @@ export default function Results({
       <section className="print:break-inside-avoid">
       <SectionHeader n={1} icon="🧠" title="Executive Summary" sub="Your core psychological profile at a glance" tone="indigo" />
       <div className="grid gap-5 md:grid-cols-[360px_1fr] print:grid-cols-1 print:gap-4">
-        <Reveal className={`${card} print:break-inside-avoid`}>
+        <Reveal className={`${card} print:break-inside-avoid print:p-6`}>
           <p className="font-bold text-slate-900">OCEAN profile</p>
           <p className="mb-2 text-sm text-slate-500">Your Big Five footprint</p>
-          <div className="h-64 w-full print:h-52">
+          <div className="h-72 w-full print:h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={chartData} outerRadius="55%" margin={{ top: 24, right: 56, bottom: 28, left: 56 }}>
+              <RadarChart data={chartData} outerRadius="70%" margin={{ top: 20, right: 40, bottom: 20, left: 40 }}>
                 <PolarGrid stroke="#e2e8f0" />
-                <PolarAngleAxis dataKey="trait" tick={{ fill: "#475569", fontSize: 11, fontWeight: 600 }} />
-                <Radar dataKey="value" stroke="#7c3aed" strokeWidth={2} fill="#8b5cf6" fillOpacity={0.35} isAnimationActive={false} />
+                <PolarAngleAxis dataKey="trait" tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }} />
+                <Radar dataKey="value" stroke="#7c3aed" strokeWidth={2.5} fill="#8b5cf6" fillOpacity={0.35} isAnimationActive={false} />
               </RadarChart>
             </ResponsiveContainer>
           </div>
@@ -354,7 +354,8 @@ export default function Results({
         {unlocked === false && <Paywall onComplete={verify} verifying={verifying} error={payError} />}
         {unlocked === true && (
           <>
-        <Reveal className={`${card} print:break-inside-avoid`}>
+        {/* Force Executive Summary text container to start on the next page in print */}
+        <Reveal className={`${card} print:break-before-page print:break-inside-avoid`}>
           {report?.executiveSummary ? (
             <>
               <p className="text-base leading-relaxed text-slate-800 print:text-sm print:leading-relaxed">{report.executiveSummary}</p>
