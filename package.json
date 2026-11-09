@@ -9,7 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@whop/checkout": "^0.7.0",
+    "@whop/elements": "^1.0.0-beta.6",
+    "@whop/elements-react": "^1.0.0-beta.6",
     "canvas-confetti": "^1.9.4",
     "framer-motion": "^14.10.1",
     "next": "16.4.5",
