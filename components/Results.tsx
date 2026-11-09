@@ -8,7 +8,7 @@ import { DISCLAIMER, SLIDERS, TRAIT_META, TRAIT_ORDER, archetype, band, type Sco
 import { INSIGHTS } from "@/lib/insights";
 
 // HIER DEINEN ECHTEN WHOP CHECKOUT LINK EINTRAGEN:
-const WHOP_CHECKOUT_URL = "https://whop.com/checkout/YOUR_PRODUCT_ID";
+const WHOP_CHECKOUT_URL = "https://whop.com/mind-blueprint-ei1gnyebx-david-50dd/mind-potential-architect/";
 
 type Report = {
   executiveSummary?: string;
