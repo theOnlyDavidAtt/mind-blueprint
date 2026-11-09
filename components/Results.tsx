@@ -162,8 +162,8 @@ export default function Results({
   const [isUnlocked, setIsUnlocked] = useState(false);
   const started = useRef(false);
   const arch = archetype(scores);
+  const paywallRef = useRef<HTMLDivElement>(null);
 
-  // Prüfen, ob der Nutzer aus dem Whop Checkout mit ?paid=true zurückgeleitet wurde
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -209,9 +209,13 @@ export default function Results({
 
   const chartData = TRAIT_ORDER.map((k) => ({ trait: SHORT[k], value: scores[k] }));
 
+  const scrollToPaywall = () => {
+    paywallRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8">
-      {/* SEITE 1: Hero, Executive Summary & OCEAN (IMMER KOSTENLOS SICHTBAR) */}
+      {/* SEITE 1: Hero & OCEAN (IMMER KOSTENLOS ALS APPETIZER) */}
       <motion.div
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -231,8 +235,7 @@ export default function Results({
         </div>
       </motion.div>
 
-      <SectionHeader n={1} icon="🧠" title="Executive Summary" sub="Your core psychological profile at a glance" tone="indigo" />
-      <div className="grid gap-5 md:grid-cols-[360px_1fr] print:grid-cols-1">
+      <div className="mt-8">
         <Reveal className={card}>
           <p className="font-bold text-slate-900">OCEAN profile</p>
           <p className="mb-2 text-sm text-slate-500">Your Big Five footprint</p>
@@ -246,95 +249,41 @@ export default function Results({
             </ResponsiveContainer>
           </div>
         </Reveal>
-        <Reveal className={`${card} print:break-inside-auto`}>
-          {report?.executiveSummary ? (
-            <>
-              <p className="text-base leading-relaxed text-slate-800 print:text-sm">{report.executiveSummary}</p>
-              {!!report.traitInteractions?.length && (
-                <div className="mt-5 border-t border-slate-100 pt-4">
-                  <p className="mb-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Dominant trait interactions</p>
-                  <ol className="space-y-3 text-sm text-slate-700">
-                    {report.traitInteractions.map((t, i) => (
-                      <li key={i} className="flex gap-3"><span className="font-extrabold text-indigo-600">{i + 1}.</span><span>{t}</span></li>
-                    ))}
-                  </ol>
-                </div>
-              )}
-            </>
-          ) : (
-            <p className="text-sm text-slate-600">
-              {status === "loading" ? "Your personal summary is being written…" : "Here is what your scores say:"}{" "}
-              {INSIGHTS[arch.top[0]][band(scores[arch.top[0]])]}
-            </p>
-          )}
-        </Reveal>
       </div>
 
-      {/* SEITE 2: Trait Breakdown & Workspace Style (EBENFALLS FREI SICHTBAR) */}
-      <div className="print:break-before-page">
-        <Reveal className={`${card} mt-5`}>
-          <p className="mb-5 text-[11px] font-bold uppercase tracking-wider text-slate-500">Trait breakdown</p>
-          <div className="grid gap-x-10 gap-y-6 md:grid-cols-2 print:grid-cols-2">
-            {TRAIT_ORDER.map((k) => {
-              const v = scores[k];
-              return (
-                <div key={k} className="break-inside-avoid">
-                  <div className="mb-1.5 flex items-baseline justify-between">
-                    <span className="font-bold text-slate-900">{TRAIT_META[k].name}</span>
-                    <span className="text-lg font-extrabold" style={{ color: TRAIT_META[k].color }}>
-                      <CountUp to={v} />%
-                    </span>
-                  </div>
-                  <div className="mb-2 h-2.5 overflow-hidden rounded-full bg-slate-100">
-                    <motion.div
-                      className="h-full rounded-full"
-                      style={{ background: TRAIT_META[k].color }}
-                      initial={{ width: 0 }}
-                      whileInView={{ width: `${v}%` }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 1 }}
-                    />
-                  </div>
-                  <p className="text-xs leading-relaxed text-slate-500">{INSIGHTS[k][band(v)]}</p>
-                </div>
-              );
-            })}
-          </div>
-        </Reveal>
-
-        <Reveal className={`${card} mt-5`}>
-          <p className="mb-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">Your workspace style</p>
-          <div className="grid gap-5 md:grid-cols-2 print:grid-cols-2">
-            {SLIDERS.map((s) => {
-              const v = sliders[s.id] ?? 50;
-              const label = v < 40 ? s.left_label : v > 60 ? s.right_label : "Balanced between both";
-              return (
-                <div key={s.id}>
-                  <div className="mb-1 flex justify-between text-xs">
-                    <span className="font-bold text-slate-700">{s.dimension}</span>
-                    <span className="font-medium text-fuchsia-600">{label}</span>
-                  </div>
-                  <div className="relative h-2 rounded-full bg-gradient-to-r from-violet-200 to-fuchsia-200">
-                    <div className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-violet-600 shadow" style={{ left: `${v}%` }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Reveal>
-      </div>
+      {/* HINWEIS-PFEIL ZUR PAYWALL (Führt direkt zum Popup) */}
+      {!isUnlocked && (
+        <div className="my-8 text-center print:hidden">
+          <button
+            type="button"
+            onClick={scrollToPaywall}
+            className="group inline-flex flex-col items-center gap-1 focus:outline-none"
+          >
+            <span className="text-xs font-bold uppercase tracking-wider text-violet-600 transition-colors group-hover:text-violet-800">
+              Unlock Executive Summary &amp; Full Blueprint below
+            </span>
+            <motion.span
+              animate={{ y: [0, 6, 0] }}
+              transition={{ repeat: Infinity, duration: 1.5 }}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100 text-violet-600 shadow-md group-hover:bg-violet-600 group-hover:text-white transition-colors"
+            >
+              ↓
+            </motion.span>
+          </button>
+        </div>
+      )}
 
       {/* ======================================================== */}
-      {/* AB HIER: DIE PAYWALL / PREMIUM INHALTE                   */}
+      {/* AB HIER: DIE FRÜHE PAYWALL / GESCHÜTZTE INHALTE           */}
       {/* ======================================================== */}
-      <div className="relative mt-8">
+      <div ref={paywallRef} className="relative mt-8">
         {!isUnlocked && (
-          <div className="absolute inset-0 z-20 flex flex-col items-center justify-start pt-16 bg-gradient-to-b from-white/40 via-white/95 to-white backdrop-blur-md rounded-3xl p-6 text-center">
-            <div className="max-w-md rounded-3xl border border-violet-100 bg-white/90 p-8 shadow-2xl backdrop-blur-xl">
+          <div className="sticky top-6 z-20 mx-auto mb-[-320px] flex max-w-md flex-col items-center p-4">
+            <div className="w-full rounded-3xl border border-violet-100 bg-white/95 p-8 text-center shadow-2xl backdrop-blur-xl ring-4 ring-violet-500/10">
               <span className="mb-3 inline-block text-4xl">🔒</span>
               <h3 className="mb-2 text-2xl font-black text-slate-900">Unlock Your Full Blueprint</h3>
               <p className="mb-6 text-sm leading-relaxed text-slate-600">
-                Get immediate access to your personalized <strong>37-Day Action Plan</strong>, <strong>Thrive &amp; Friction Zones</strong>, and tailored <strong>Geographical Fit Analysis</strong>.
+                Get immediate access to your <strong>Executive Summary</strong>, <strong>Trait Breakdowns</strong>, <strong>37-Day Action Plan</strong>, and <strong>Thrive Zones</strong>.
               </p>
               <a
                 href={WHOP_CHECKOUT_URL}
@@ -347,12 +296,93 @@ export default function Results({
           </div>
         )}
 
-        {/* Die geschützten Abschnitte (werden verschwommen angezeigt, wenn isUnlocked === false) */}
-        <div className={!isUnlocked ? "blur-md select-none pointer-events-none opacity-40 max-h-[500px] overflow-hidden" : ""}>
+        {/* Die geschützten Abschnitte (verschwommen, wenn isUnlocked === false) */}
+        <div className={!isUnlocked ? "blur-md select-none pointer-events-none opacity-30 transition-all duration-300" : ""}>
+          
+          <SectionHeader n={1} icon="🧠" title="Executive Summary" sub="Your core psychological profile at a glance" tone="indigo" />
+          <div className="grid gap-5">
+            <Reveal className={`${card} print:break-inside-auto`}>
+              {report?.executiveSummary ? (
+                <>
+                  <p className="text-base leading-relaxed text-slate-800 print:text-sm">{report.executiveSummary}</p>
+                  {!!report.traitInteractions?.length && (
+                    <div className="mt-5 border-t border-slate-100 pt-4">
+                      <p className="mb-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Dominant trait interactions</p>
+                      <ol className="space-y-3 text-sm text-slate-700">
+                        {report.traitInteractions.map((t, i) => (
+                          <li key={i} className="flex gap-3"><span className="font-extrabold text-indigo-600">{i + 1}.</span><span>{t}</span></li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-slate-600">
+                  {status === "loading" ? "Your personal summary is being written…" : "Here is what your scores say:"}{" "}
+                  {INSIGHTS[arch.top[0]][band(scores[arch.top[0]])]}
+                </p>
+              )}
+            </Reveal>
+          </div>
+
+          {/* Trait Breakdown & Workspace Style */}
+          <div className="print:break-before-page">
+            <Reveal className={`${card} mt-5`}>
+              <p className="mb-5 text-[11px] font-bold uppercase tracking-wider text-slate-500">Trait breakdown</p>
+              <div className="grid gap-x-10 gap-y-6 md:grid-cols-2 print:grid-cols-2">
+                {TRAIT_ORDER.map((k) => {
+                  const v = scores[k];
+                  return (
+                    <div key={k} className="break-inside-avoid">
+                      <div className="mb-1.5 flex items-baseline justify-between">
+                        <span className="font-bold text-slate-900">{TRAIT_META[k].name}</span>
+                        <span className="text-lg font-extrabold" style={{ color: TRAIT_META[k].color }}>
+                          <CountUp to={v} />%
+                        </span>
+                      </div>
+                      <div className="mb-2 h-2.5 overflow-hidden rounded-full bg-slate-100">
+                        <motion.div
+                          className="h-full rounded-full"
+                          style={{ background: TRAIT_META[k].color }}
+                          initial={{ width: 0 }}
+                          whileInView={{ width: `${v}%` }}
+                          viewport={{ once: true }}
+                          transition={{ duration: 1 }}
+                        />
+                      </div>
+                      <p className="text-xs leading-relaxed text-slate-500">{INSIGHTS[k][band(v)]}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </Reveal>
+
+            <Reveal className={`${card} mt-5`}>
+              <p className="mb-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">Your workspace style</p>
+              <div className="grid gap-5 md:grid-cols-2 print:grid-cols-2">
+                {SLIDERS.map((s) => {
+                  const v = sliders[s.id] ?? 50;
+                  const label = v < 40 ? s.left_label : v > 60 ? s.right_label : "Balanced between both";
+                  return (
+                    <div key={s.id}>
+                      <div className="mb-1 flex justify-between text-xs">
+                        <span className="font-bold text-slate-700">{s.dimension}</span>
+                        <span className="font-medium text-fuchsia-600">{label}</span>
+                      </div>
+                      <div className="relative h-2 rounded-full bg-gradient-to-r from-violet-200 to-fuchsia-200">
+                        <div className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-violet-600 shadow" style={{ left: `${v}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Reveal>
+          </div>
+
           {status === "loading" && <Loading />}
           {status === "error" && (
             <div className="mt-10 rounded-3xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-900">
-              The personal report is not available right now ({errMsg}). Your scores above are still complete.
+              The personal report is not available right now ({errMsg}).
             </div>
           )}
 
