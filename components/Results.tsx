@@ -30,7 +30,7 @@ const TONES = {
 } as const;
 type Tone = keyof typeof TONES;
 
-const card = "break-inside-avoid rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm shadow-slate-200/60 print:p-5 print:mb-6";
+const card = "break-inside-avoid rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm shadow-slate-200/60 print:p-5 print:mb-5";
 
 function CountUp({ to }: { to: number }) {
   const [v, setV] = useState(0);
@@ -57,12 +57,12 @@ function Reveal({ children, className = "" }: { children: React.ReactNode; class
 
 function SectionHeader({ n, icon, title, sub, tone }: { n: number; icon: string; title: string; sub: string; tone: Tone }) {
   return (
-    <Reveal className="mb-4 mt-12 flex break-after-avoid items-center gap-4 print:mt-6 print:mb-4 print:break-after-avoid">
-      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border text-2xl ${TONES[tone].tile}`}>{icon}</div>
+    <Reveal className="mb-4 mt-10 flex break-after-avoid items-center gap-4 print:mt-6 print:mb-3 print:break-after-avoid">
+      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border text-xl ${TONES[tone].tile}`}>{icon}</div>
       <div>
         <p className={`text-[11px] font-bold uppercase tracking-[0.2em] ${TONES[tone].label}`}>Section {String(n).padStart(2, "0")}</p>
-        <h2 className="text-2xl font-extrabold text-slate-900">{title}</h2>
-        <p className="text-sm text-slate-500">{sub}</p>
+        <h2 className="text-xl font-extrabold text-slate-900">{title}</h2>
+        <p className="text-xs text-slate-500">{sub}</p>
       </div>
     </Reveal>
   );
@@ -70,7 +70,7 @@ function SectionHeader({ n, icon, title, sub, tone }: { n: number; icon: string;
 
 function Bullets({ items, dot }: { items: string[]; dot: string }) {
   return (
-    <ul className="space-y-2.5 text-sm text-slate-700">
+    <ul className="space-y-2 text-sm text-slate-700">
       {items.map((t, i) => (
         <li key={i} className="flex gap-2.5">
           <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${dot}`} />
@@ -125,28 +125,28 @@ function SevenDays({ plan }: { plan: { theme: string; tasks: string[] }[] }) {
         </div>
         <p className="mt-2 text-xs text-slate-400 print:hidden">Tick off the micro-habits as you go.</p>
       </Reveal>
-      <div className="grid gap-4 md:grid-cols-2 print:grid-cols-2 print:gap-4">
+      <div className="grid gap-4 md:grid-cols-2 print:grid-cols-2 print:gap-3">
         {plan.map((d, di) => (
           <Reveal key={di} className={`${card} print:break-inside-avoid print:mb-0`}>
-            <div className="mb-3 flex items-center justify-between">
+            <div className="mb-2 flex items-center justify-between">
               <p className="text-xs font-bold uppercase tracking-wider text-teal-700">Day {di + 1} · {days[di] ?? ""}</p>
-              <span className="rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-700">{d.theme}</span>
+              <span className="rounded-full border border-teal-200 bg-teal-50 px-2.5 py-0.5 text-xs font-semibold text-teal-700">{d.theme}</span>
             </div>
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               {d.tasks.map((t, ti) => {
                 const key = `${di}-${ti}`;
                 const on = !!done[key];
                 return (
-                  <button key={key} type="button" onClick={() => toggle(key, di)} className="flex w-full gap-3 text-left">
+                  <button key={key} type="button" onClick={() => toggle(key, di)} className="flex w-full gap-2.5 text-left">
                     <motion.span
                       animate={{ scale: on ? [1, 1.3, 1] : 1 }}
-                      className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 text-xs font-bold ${
+                      className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-md border-2 text-[10px] font-bold ${
                         on ? "border-teal-500 bg-teal-500 text-white" : "border-teal-300 bg-white"
                       }`}
                     >
                       {on ? "✓" : ""}
                     </motion.span>
-                    <span className={`text-sm ${on ? "text-slate-400 line-through" : "text-slate-700"}`}>{t}</span>
+                    <span className={`text-xs ${on ? "text-slate-400 line-through" : "text-slate-700"}`}>{t}</span>
                   </button>
                 );
               })}
@@ -290,9 +290,9 @@ export default function Results({
   const chartData = TRAIT_ORDER.map((k) => ({ trait: SHORT[k], value: scores[k] }));
 
   const workspaceCard = (
-      <Reveal className={`${card} print:break-inside-avoid`}>
-        <p className="mb-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">Your workspace style</p>
-        <div className="grid gap-5 md:grid-cols-2 print:grid-cols-2 print:gap-4">
+      <Reveal className={`${card} print:break-inside-avoid print:p-4`}>
+        <p className="mb-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Your workspace style</p>
+        <div className="grid gap-4 md:grid-cols-2 print:grid-cols-2 print:gap-3">
           {SLIDERS.map((s) => {
             const v = sliders[s.id] ?? 50;
             const label = v < 40 ? s.left_label : v > 60 ? s.right_label : "Balanced between both";
@@ -314,99 +314,101 @@ export default function Results({
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8 print:w-full print:max-w-none print:px-8 print:py-6">
-      {/* Hero */}
+      {/* Hero - Vergrößert und bildschirmfüllend auf Seite 1 */}
       <motion.div
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="break-inside-avoid rounded-[2rem] bg-gradient-to-br from-violet-600 via-fuchsia-500 to-amber-400 p-8 text-center text-white shadow-2xl shadow-violet-300 sm:p-12 print:p-8 print:mb-6 print:shadow-none print:break-inside-avoid"
+        className="break-inside-avoid rounded-[2.5rem] bg-gradient-to-br from-violet-600 via-fuchsia-500 to-amber-400 p-10 text-center text-white shadow-2xl shadow-violet-300 sm:p-14 print:p-8 print:mb-6 print:shadow-none print:break-inside-avoid"
       >
-        <p className="mb-2 text-xs font-bold uppercase tracking-[0.3em] text-white/80">Your profile type</p>
-        <motion.div animate={{ y: [0, -8, 0] }} transition={{ repeat: Infinity, duration: 2.5 }} className="mb-2 text-7xl print:text-5xl">
+        <p className="mb-3 text-xs font-bold uppercase tracking-[0.3em] text-white/90">Your profile type</p>
+        <motion.div animate={{ y: [0, -8, 0] }} transition={{ repeat: Infinity, duration: 2.5 }} className="mb-3 text-8xl print:text-6xl">
           {arch.emoji}
         </motion.div>
-        <h1 className="mb-4 text-3xl font-extrabold sm:text-5xl print:mb-3 print:text-4xl">{arch.title}</h1>
-        <div className="flex flex-wrap justify-center gap-2">
+        <h1 className="mb-5 text-4xl font-extrabold sm:text-6xl print:mb-4 print:text-4xl">{arch.title}</h1>
+        <div className="flex flex-wrap justify-center gap-2.5">
           {arch.top.map((k) => (
-            <span key={k} className="rounded-full bg-white/20 px-4 py-1.5 text-sm font-semibold backdrop-blur">
+            <span key={k} className="rounded-full bg-white/25 px-5 py-2 text-sm font-semibold backdrop-blur">
               {TRAIT_META[k].name} · {scores[k]}
             </span>
           ))}
         </div>
       </motion.div>
 
-      {/* 01 Executive summary */}
+      {/* 01 Executive summary: Radar-Diagramm füllt nun perfekt Seite 1 */}
       <section className="print:break-inside-avoid">
       <SectionHeader n={1} icon="🧠" title="Executive Summary" sub="Your core psychological profile at a glance" tone="indigo" />
-      <div className="grid gap-5 md:grid-cols-[360px_1fr] print:grid-cols-1 print:gap-4">
-        <Reveal className={`${card} print:break-inside-avoid print:p-6`}>
-          <p className="font-bold text-slate-900">OCEAN profile</p>
-          <p className="mb-2 text-sm text-slate-500">Your Big Five footprint</p>
-          <div className="h-72 w-full print:h-64">
+      <div className="grid gap-5 md:grid-cols-[1fr] print:grid-cols-1 print:gap-4">
+        <Reveal className={`${card} print:break-inside-avoid print:p-6 print:text-center`}>
+          <p className="font-bold text-slate-900 text-base">OCEAN profile</p>
+          <p className="mb-4 text-xs text-slate-500">Your Big Five footprint</p>
+          <div className="h-96 w-full print:h-[340px]">
             <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={chartData} outerRadius="70%" margin={{ top: 20, right: 40, bottom: 20, left: 40 }}>
-                <PolarGrid stroke="#e2e8f0" />
-                <PolarAngleAxis dataKey="trait" tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }} />
-                <Radar dataKey="value" stroke="#7c3aed" strokeWidth={2.5} fill="#8b5cf6" fillOpacity={0.35} isAnimationActive={false} />
+              <RadarChart data={chartData} outerRadius="75%" margin={{ top: 10, right: 30, bottom: 10, left: 30 }}>
+                <PolarGrid stroke="#cbd5e1" />
+                <PolarAngleAxis dataKey="trait" tick={{ fill: "#334155", fontSize: 13, fontWeight: 700 }} />
+                <Radar dataKey="value" stroke="#7c3aed" strokeWidth={3} fill="#8b5cf6" fillOpacity={0.4} isAnimationActive={false} />
               </RadarChart>
             </ResponsiveContainer>
           </div>
         </Reveal>
+
         {unlocked === false && <Paywall onComplete={verify} verifying={verifying} error={payError} />}
+        
         {unlocked === true && (
           <>
-        {/* Force Executive Summary text container to start on the next page in print */}
-        <Reveal className={`${card} print:break-before-page print:break-inside-avoid`}>
-          {report?.executiveSummary ? (
-            <>
-              <p className="text-base leading-relaxed text-slate-800 print:text-sm print:leading-relaxed">{report.executiveSummary}</p>
-              {!!report.traitInteractions?.length && (
-                <div className="mt-5 border-t border-slate-100 pt-4 print:mt-4 print:pt-3">
-                  <p className="mb-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Dominant trait interactions</p>
-                  <ol className="space-y-3 text-sm text-slate-700 print:space-y-2 print:text-xs">
-                    {report.traitInteractions.map((t, i) => (
-                      <li key={i} className="flex gap-3"><span className="font-extrabold text-indigo-600">{i + 1}.</span><span>{t}</span></li>
-                    ))}
-                  </ol>
-                </div>
+            {/* Ab hier geht es sauber auf Seite 2 weiter */}
+            <Reveal className={`${card} print:break-before-page print:break-inside-avoid`}>
+              {report?.executiveSummary ? (
+                <>
+                  <p className="text-base leading-relaxed text-slate-800 print:text-sm print:leading-relaxed">{report.executiveSummary}</p>
+                  {!!report.traitInteractions?.length && (
+                    <div className="mt-5 border-t border-slate-100 pt-4 print:mt-4 print:pt-3">
+                      <p className="mb-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Dominant trait interactions</p>
+                      <ol className="space-y-3 text-sm text-slate-700 print:space-y-2 print:text-xs">
+                        {report.traitInteractions.map((t, i) => (
+                          <li key={i} className="flex gap-3"><span className="font-extrabold text-indigo-600">{i + 1}.</span><span>{t}</span></li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-slate-600">
+                  {status === "loading" ? "Your personal summary is being written…" : "Here is what your scores say:"}{" "}
+                  {INSIGHTS[arch.top[0]][band(scores[arch.top[0]])]}
+                </p>
               )}
-            </>
-          ) : (
-            <p className="text-sm text-slate-600">
-              {status === "loading" ? "Your personal summary is being written…" : "Here is what your scores say:"}{" "}
-              {INSIGHTS[arch.top[0]][band(scores[arch.top[0]])]}
-            </p>
-          )}
-        </Reveal>
-      <Reveal className={`${card} md:col-span-2 print:col-span-1 print:break-inside-avoid`}>
-        <p className="mb-5 text-[11px] font-bold uppercase tracking-wider text-slate-500">Trait breakdown</p>
-        <div className="grid gap-x-10 gap-y-6 md:grid-cols-2 print:grid-cols-1 print:gap-y-4">
-          {TRAIT_ORDER.map((k) => {
-            const v = scores[k];
-            return (
-              <div key={k} className="print:break-inside-avoid">
-                <div className="mb-1.5 flex items-baseline justify-between">
-                  <span className="font-bold text-slate-900">{TRAIT_META[k].name}</span>
-                  <span className="text-lg font-extrabold" style={{ color: TRAIT_META[k].color }}>
-                    <CountUp to={v} />%
-                  </span>
-                </div>
-                <div className="mb-2 h-2.5 overflow-hidden rounded-full bg-slate-100">
-                  <motion.div
-                    className="h-full rounded-full"
-                    style={{ background: TRAIT_META[k].color }}
-                    initial={{ width: 0 }}
-                    whileInView={{ width: `${v}%` }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 1 }}
-                  />
-                </div>
-                <p className="text-xs leading-relaxed text-slate-500">{INSIGHTS[k][band(v)]}</p>
-              </div>
-            );
-          })}
-        </div>
-      </Reveal>
+            </Reveal>
 
+            <Reveal className={`${card} print:break-inside-avoid`}>
+              <p className="mb-5 text-[11px] font-bold uppercase tracking-wider text-slate-500">Trait breakdown</p>
+              <div className="grid gap-x-10 gap-y-6 md:grid-cols-2 print:grid-cols-1 print:gap-y-4">
+                {TRAIT_ORDER.map((k) => {
+                  const v = scores[k];
+                  return (
+                    <div key={k} className="print:break-inside-avoid">
+                      <div className="mb-1.5 flex items-baseline justify-between">
+                        <span className="font-bold text-slate-900">{TRAIT_META[k].name}</span>
+                        <span className="text-lg font-extrabold" style={{ color: TRAIT_META[k].color }}>
+                          <CountUp to={v} />%
+                        </span>
+                      </div>
+                      <div className="mb-2 h-2.5 overflow-hidden rounded-full bg-slate-100">
+                        <motion.div
+                          className="h-full rounded-full"
+                          style={{ background: TRAIT_META[k].color }}
+                          initial={{ width: 0 }}
+                          whileInView={{ width: `${v}%` }}
+                          viewport={{ once: true }}
+                          transition={{ duration: 1 }}
+                        />
+                      </div>
+                      <p className="text-xs leading-relaxed text-slate-500">{INSIGHTS[k][band(v)]}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </Reveal>
           </>
         )}
       </div>
