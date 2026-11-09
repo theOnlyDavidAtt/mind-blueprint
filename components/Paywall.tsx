@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { WhopCheckoutEmbed } from "@whop/checkout/react";
+import { WhopCheckoutEmbed } from "@whop/checkout";
 
 const PLAN_ID = process.env.NEXT_PUBLIC_WHOP_PLAN_ID;
 const PRICE = process.env.NEXT_PUBLIC_PRICE_LABEL || "$20";
