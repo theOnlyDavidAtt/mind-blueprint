@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Quiz from "@/components/Quiz";
 import Sliders from "@/components/Sliders";
@@ -8,6 +8,8 @@ import Results from "@/components/Results";
 import { scoreBig5, type Scores } from "@/lib/scoring";
 
 type Stage = "intro" | "quiz" | "sliders" | "results";
+
+const STORE = "mpa_state_v1"; // quiz result survives reloads and the checkout redirect (no database needed)
 
 const FEATURES = [
   ["🧠", "50 Big Five questions", "Science-based, from the public-domain IPIP item pool"],
@@ -19,6 +21,25 @@ export default function Home() {
   const [stage, setStage] = useState<Stage>("intro");
   const [scores, setScores] = useState<Scores | null>(null);
   const [sliders, setSliders] = useState<Record<string, number>>({});
+  const [ready, setReady] = useState(false);
+
+  // Restore a finished quiz after a reload or a return from checkout.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(STORE);
+      if (raw) {
+        const d = JSON.parse(raw);
+        if (d?.scores && d?.sliders) {
+          setScores(d.scores);
+          setSliders(d.sliders);
+          setStage("results");
+        }
+      }
+    } catch { /* storage unavailable or corrupt: start fresh */ }
+    setReady(true);
+  }, []);
+
+  if (!ready) return <main className="min-h-screen bg-[#f6f5fb]" />;
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-violet-50 via-[#f6f5fb] to-amber-50/40">
@@ -79,12 +100,21 @@ export default function Home() {
             <Sliders
               onDone={(v) => {
                 setSliders(v);
+                try {
+                  window.localStorage.setItem(STORE, JSON.stringify({ scores, sliders: v }));
+                } catch { /* ignore */ }
                 setStage("results");
               }}
             />
           )}
           {stage === "results" && scores && (
-            <Results scores={scores} sliders={sliders} onRetake={() => setStage("intro")} />
+            <Results scores={scores} sliders={sliders} onRetake={() => {
+              try {
+                window.localStorage.removeItem(STORE);
+                window.localStorage.removeItem("mpa_report_v1");
+              } catch { /* ignore */ }
+              setStage("intro");
+            }} />
           )}
         </motion.div>
       </AnimatePresence>

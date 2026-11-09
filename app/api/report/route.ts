@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SLIDERS } from "@/lib/scoring";
+import { ACCESS_COOKIE, devUnlock, verifyAccess } from "@/lib/access";
 
 // Simple in-memory rate limit (per server instance). Replace with a real store (e.g. Upstash) before launch.
 const hits = new Map<string, number[]>();
@@ -67,6 +68,19 @@ async function generate(apiKey: string, shape: string, userMsg: string): Promise
 }
 
 export async function POST(req: NextRequest) {
+  // Paywall: only verified buyers (signed cookie issued after Whop confirmed the payment) get a report.
+  let allowed = devUnlock();
+  if (!allowed) {
+    try {
+      allowed = !!verifyAccess(req.cookies.get(ACCESS_COOKIE)?.value);
+    } catch {
+      allowed = false;
+    }
+  }
+  if (!allowed) {
+    return NextResponse.json({ error: "Payment required." }, { status: 402 });
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: "AI report is not configured (missing ANTHROPIC_API_KEY)." }, { status: 503 });

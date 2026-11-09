@@ -1,14 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { animate, motion } from "framer-motion";
 import confetti from "canvas-confetti";
 import { PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer } from "recharts";
 import { DISCLAIMER, SLIDERS, TRAIT_META, TRAIT_ORDER, archetype, band, type Scores } from "@/lib/scoring";
 import { INSIGHTS } from "@/lib/insights";
-
-// ECHTER WHOP CHECKOUT LINK
-const WHOP_CHECKOUT_URL = "https://whop.com/mind-blueprint-ei1gnyebx-david-50dd/mind-potential-architect/";
+import Paywall, { LockedTeaser } from "@/components/Paywall";
 
 type Report = {
   executiveSummary?: string;
@@ -57,9 +55,9 @@ function Reveal({ children, className = "" }: { children: React.ReactNode; class
   );
 }
 
-function SectionHeader({ n, icon, title, sub, tone, pageBreak = false }: { n: number; icon: string; title: string; sub: string; tone: Tone; pageBreak?: boolean }) {
+function SectionHeader({ n, icon, title, sub, tone }: { n: number; icon: string; title: string; sub: string; tone: Tone }) {
   return (
-    <Reveal className={`mb-4 mt-12 flex break-after-avoid items-center gap-4 print:mt-6 ${pageBreak ? "print:break-before-page" : ""}`}>
+    <Reveal className={`mb-4 mt-12 flex break-after-avoid items-center gap-4 print:mt-0 ${n > 1 ? "print:break-before-page" : ""}`}>
       <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border text-2xl ${TONES[tone].tile}`}>{icon}</div>
       <div>
         <p className={`text-[11px] font-bold uppercase tracking-[0.2em] ${TONES[tone].label}`}>Section {String(n).padStart(2, "0")}</p>
@@ -67,6 +65,19 @@ function SectionHeader({ n, icon, title, sub, tone, pageBreak = false }: { n: nu
         <p className="text-sm text-slate-500">{sub}</p>
       </div>
     </Reveal>
+  );
+}
+
+function Bullets({ items, dot }: { items: string[]; dot: string }) {
+  return (
+    <ul className="space-y-2.5 text-sm text-slate-700">
+      {items.map((t, i) => (
+        <li key={i} className="flex gap-2.5">
+          <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${dot}`} />
+          <span>{t}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -101,7 +112,7 @@ function SevenDays({ plan }: { plan: { theme: string; tasks: string[] }[] }) {
 
   return (
     <>
-      <Reveal className={`${card} mb-4`}>
+      <Reveal className={`${card} mb-4 print:hidden`}>
         <div className="mb-2 flex justify-between text-sm font-bold text-slate-700">
           <span>{count === total && total > 0 ? "Week complete! 🎉" : "Your week so far"}</span>
           <span>{count} / {total}</span>
@@ -148,59 +159,106 @@ function SevenDays({ plan }: { plan: { theme: string; tasks: string[] }[] }) {
 }
 
 export default function Results({
-  scores: initialScores,
-  sliders: initialSliders,
+  scores,
+  sliders,
   onRetake,
 }: {
   scores: Scores;
   sliders: Record<string, number>;
   onRetake: () => void;
 }) {
-  const [scores, setScores] = useState<Scores>(initialScores);
-  const [sliders, setSliders] = useState<Record<string, number>>(initialSliders);
   const [report, setReport] = useState<Report | null>(null);
-  const [status, setStatus] = useState<"loading" | "done" | "error">("loading");
+  const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [errMsg, setErrMsg] = useState("");
-  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [unlocked, setUnlocked] = useState<boolean | null>(null); // null = still checking
+  const [verifying, setVerifying] = useState(false);
+  const [payError, setPayError] = useState("");
   const started = useRef(false);
-  const paywallRef = useRef<HTMLDivElement>(null);
-
-  // ZUSTANDSSICHERUNG & WHOP-PAYWALL-PRÜFUNG
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      if (initialScores && Object.keys(initialScores).length > 0) {
-        localStorage.setItem("mind_scores", JSON.stringify(initialScores));
-        localStorage.setItem("mind_sliders", JSON.stringify(initialSliders));
-      }
-
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("paid") === "true") {
-        setIsUnlocked(true);
-
-        const savedScores = localStorage.getItem("mind_scores");
-        const savedSliders = localStorage.getItem("mind_sliders");
-        if (savedScores && savedSliders) {
-          try {
-            setScores(JSON.parse(savedScores));
-            setSliders(JSON.parse(savedSliders));
-          } catch (e) {
-            console.error("Failed to restore scores", e);
-          }
-        }
-
-        // URL CLEANUP
-        const newUrl = window.location.pathname;
-        window.history.replaceState({}, document.title, newUrl);
-      }
-    }
-  }, [initialScores, initialSliders]);
-
   const arch = archetype(scores);
 
+  const store = {
+    get: (k: string) => {
+      try { return window.localStorage.getItem(k); } catch { return null; }
+    },
+    set: (k: string, v: string) => {
+      try { window.localStorage.setItem(k, v); } catch { /* storage may be blocked */ }
+    },
+    del: (k: string) => {
+      try { window.localStorage.removeItem(k); } catch { /* ignore */ }
+    },
+  };
+
+  // Ask the server to confirm the payment with Whop. The server sets a signed cookie on success.
+  const verify = useCallback(async (paymentId: string) => {
+    setVerifying(true);
+    setPayError("");
+    try {
+      window.localStorage.setItem("mpa_pending_payment", paymentId);
+    } catch { /* ignore */ }
+    for (let i = 0; i < 15; i++) {
+      try {
+        const res = await fetch("/api/whop/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paymentId }),
+        });
+        if (res.ok) {
+          try { window.localStorage.removeItem("mpa_pending_payment"); } catch { /* ignore */ }
+          setUnlocked(true);
+          setVerifying(false);
+          confetti({ particleCount: 180, spread: 100, origin: { y: 0.4 } });
+          return;
+        }
+        if (res.status !== 202) {
+          const d = await res.json().catch(() => ({}));
+          setPayError(d.error ?? "Verification failed.");
+          setVerifying(false);
+          return;
+        }
+      } catch { /* network hiccup: retry */ }
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+    setPayError("We could not confirm your payment yet. Please reload this page in a minute. Your purchase is safe.");
+    setVerifying(false);
+  }, []);
+
+  // 1) On load: remove any payment params from the address bar, ask the server whether this browser has paid.
   useEffect(() => {
     confetti({ particleCount: 150, spread: 90, origin: { y: 0.25 } });
-    if (started.current) return;
+    (async () => {
+      const sp = new URLSearchParams(window.location.search);
+      const returned = sp.get("payment_id") ?? sp.get("receipt_id");
+      if (["payment_id", "receipt_id", "status", "state_id", "paid"].some((k) => sp.has(k))) {
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+      let ok = false;
+      try {
+        const r = await fetch("/api/access", { cache: "no-store" });
+        ok = (await r.json()).unlocked === true;
+      } catch { /* treat as locked */ }
+      setUnlocked(ok);
+      if (!ok) {
+        const pending = returned ?? store.get("mpa_pending_payment");
+        if (pending) verify(pending);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verify]);
+
+  // 2) Only after payment is confirmed: load the cached report or generate it (the server refuses unpaid requests).
+  useEffect(() => {
+    if (unlocked !== true || started.current) return;
     started.current = true;
+    const key = JSON.stringify({ scores, sliders });
+    try {
+      const cached = JSON.parse(window.localStorage.getItem("mpa_report_v1") ?? "null");
+      if (cached?.key === key && cached.report) {
+        setReport(cached.report);
+        setStatus("done");
+        return;
+      }
+    } catch { /* ignore */ }
+    setStatus("loading");
     (async () => {
       try {
         const res = await fetch("/api/report", {
@@ -212,12 +270,14 @@ export default function Results({
         if (!res.ok) throw new Error(data.error ?? "Request failed");
         setReport(data.report);
         setStatus("done");
+        store.set("mpa_report_v1", JSON.stringify({ key, report: data.report }));
       } catch (e) {
         setErrMsg(e instanceof Error ? e.message : "Unknown error");
         setStatus("error");
       }
     })();
-  }, [scores, sliders]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unlocked, scores, sliders]);
 
   const SHORT: Record<string, string> = { O: "Openness", C: "Conscient.", E: "Extraversion", A: "Agreeable.", S: "Stability" };
   const printPdf = async () => {
@@ -233,13 +293,32 @@ export default function Results({
 
   const chartData = TRAIT_ORDER.map((k) => ({ trait: SHORT[k], value: scores[k] }));
 
-  const scrollToPaywall = () => {
-    paywallRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const workspaceCard = (
+      <Reveal className={card}>
+        <p className="mb-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">Your workspace style</p>
+        <div className="grid gap-5 md:grid-cols-2 print:grid-cols-2">
+          {SLIDERS.map((s) => {
+            const v = sliders[s.id] ?? 50;
+            const label = v < 40 ? s.left_label : v > 60 ? s.right_label : "Balanced between both";
+            return (
+              <div key={s.id}>
+                <div className="mb-1 flex justify-between text-xs">
+                  <span className="font-bold text-slate-700">{s.dimension}</span>
+                  <span className="font-medium text-fuchsia-600">{label}</span>
+                </div>
+                <div className="relative h-2 rounded-full bg-gradient-to-r from-violet-200 to-fuchsia-200">
+                  <div className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-violet-600 shadow" style={{ left: `${v}%` }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Reveal>
+  );
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8">
-      {/* SEITE 1: Hero & OCEAN (KOSTENLOS ALS TEASER) */}
+      {/* Hero */}
       <motion.div
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -259,11 +338,13 @@ export default function Results({
         </div>
       </motion.div>
 
-      <div className="mt-8">
-        <Reveal className={card}>
+      {/* 01 Executive summary */}
+      <SectionHeader n={1} icon="🧠" title="Executive Summary" sub="Your core psychological profile at a glance" tone="indigo" />
+      <div className="grid gap-5 md:grid-cols-[360px_1fr] print:grid-cols-[300px_1fr]">
+        <Reveal className={`${card} print:order-1`}>
           <p className="font-bold text-slate-900">OCEAN profile</p>
           <p className="mb-2 text-sm text-slate-500">Your Big Five footprint</p>
-          <div className="h-64 w-full print:mx-auto print:h-56 print:max-w-sm">
+          <div className="h-64 w-full print:h-52">
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart data={chartData} outerRadius="55%" margin={{ top: 24, right: 56, bottom: 28, left: 56 }}>
                 <PolarGrid stroke="#e2e8f0" />
@@ -273,232 +354,176 @@ export default function Results({
             </ResponsiveContainer>
           </div>
         </Reveal>
+        {unlocked === false && <Paywall onComplete={verify} verifying={verifying} error={payError} />}
+        {unlocked === true && (
+          <>
+        <Reveal className={`${card} print:order-3 print:col-span-2 print:break-inside-auto`}>
+          {report?.executiveSummary ? (
+            <>
+              <p className="text-base leading-relaxed text-slate-800 print:text-[13px] print:leading-snug">{report.executiveSummary}</p>
+              {!!report.traitInteractions?.length && (
+                <div className="mt-5 border-t border-slate-100 pt-4 print:mt-3 print:pt-3">
+                  <p className="mb-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Dominant trait interactions</p>
+                  <ol className="space-y-3 text-sm text-slate-700 print:space-y-1.5 print:text-xs">
+                    {report.traitInteractions.map((t, i) => (
+                      <li key={i} className="flex gap-3"><span className="font-extrabold text-indigo-600">{i + 1}.</span><span>{t}</span></li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-slate-600">
+              {status === "loading" ? "Your personal summary is being written…" : "Here is what your scores say:"}{" "}
+              {INSIGHTS[arch.top[0]][band(scores[arch.top[0]])]}
+            </p>
+          )}
+        </Reveal>
+      <Reveal className={`${card} md:col-span-2 print:order-2 print:col-span-1`}>
+        <p className="mb-5 text-[11px] font-bold uppercase tracking-wider text-slate-500">Trait breakdown</p>
+        <div className="grid gap-x-10 gap-y-6 md:grid-cols-2 print:grid-cols-1 print:gap-y-3">
+          {TRAIT_ORDER.map((k) => {
+            const v = scores[k];
+            return (
+              <div key={k} className="break-inside-avoid">
+                <div className="mb-1.5 flex items-baseline justify-between">
+                  <span className="font-bold text-slate-900">{TRAIT_META[k].name}</span>
+                  <span className="text-lg font-extrabold" style={{ color: TRAIT_META[k].color }}>
+                    <CountUp to={v} />%
+                  </span>
+                </div>
+                <div className="mb-2 h-2.5 overflow-hidden rounded-full bg-slate-100">
+                  <motion.div
+                    className="h-full rounded-full"
+                    style={{ background: TRAIT_META[k].color }}
+                    initial={{ width: 0 }}
+                    whileInView={{ width: `${v}%` }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 1 }}
+                  />
+                </div>
+                <p className="text-xs leading-relaxed text-slate-500">{INSIGHTS[k][band(v)]}</p>
+              </div>
+            );
+          })}
+        </div>
+      </Reveal>
+
+          </>
+        )}
       </div>
 
-      {/* HINWEIS-PFEIL ZUR PAYWALL */}
-      {!isUnlocked && (
-        <div className="my-8 text-center print:hidden">
-          <button
-            type="button"
-            onClick={scrollToPaywall}
-            className="group inline-flex flex-col items-center gap-1 focus:outline-none"
-          >
-            <span className="text-xs font-bold uppercase tracking-wider text-violet-600 transition-colors group-hover:text-violet-800">
-              Unlock Executive Summary &amp; Full Blueprint below
-            </span>
-            <motion.span
-              animate={{ y: [0, 6, 0] }}
-              transition={{ repeat: Infinity, duration: 1.5 }}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100 text-violet-600 shadow-md group-hover:bg-violet-600 group-hover:text-white transition-colors"
-            >
-              ↓
-            </motion.span>
-          </button>
+      {unlocked === true && !report && <div className="mt-5">{workspaceCard}</div>}
+      {unlocked === false && <LockedTeaser />}
+
+      {unlocked === true && status === "loading" && <Loading />}
+      {unlocked === true && status === "error" && (
+        <div className="mt-10 rounded-3xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-900">
+          The personal AI report is not available right now ({errMsg}). Your scores above are still complete.
         </div>
       )}
 
-      {/* ======================================================== */}
-      {/* AB HIER: DIE PAYWALL & GESCHÜTZTE INHALTE                */}
-      {/* ======================================================== */}
-      <div ref={paywallRef} className="relative mt-8">
-        {!isUnlocked && (
-          <div className="sticky top-6 z-20 mx-auto mb-[-320px] flex max-w-md flex-col items-center p-4">
-            <div className="w-full rounded-3xl border border-violet-100 bg-white/95 p-8 text-center shadow-2xl backdrop-blur-xl ring-4 ring-violet-500/10">
-              <span className="mb-3 inline-block text-4xl">🔒</span>
-              <h3 className="mb-2 text-2xl font-black text-slate-900">Unlock Your Full Blueprint</h3>
-              <p className="mb-6 text-sm leading-relaxed text-slate-600">
-                Get immediate access to your <strong>Executive Summary</strong>, <strong>Trait Breakdowns</strong>, <strong>7-Day Action Plan</strong>, and <strong>Thrive Zones</strong>.
-              </p>
-              <a
-                href={WHOP_CHECKOUT_URL}
-                className="block w-full rounded-2xl bg-gradient-to-r from-violet-600 via-fuchsia-500 to-amber-500 py-4 text-center font-extrabold text-white shadow-xl shadow-violet-300 hover:opacity-95 transition-opacity"
-              >
-                Unlock Full Access for $20 →
-              </a>
-              <p className="mt-3 text-xs text-slate-400">One-time payment · Instant access</p>
+      {unlocked === true && report && (
+        <>
+          {/* 02 Stress */}
+          <SectionHeader n={2} icon="🔥" title="Mind Mechanics Under Stress" sub="How your brain behaves under pressure" tone="rose" />
+          <Reveal className={`${card} print:break-inside-auto`}>
+            <p className="mb-5 leading-relaxed text-slate-800 print:text-sm">{report.mindMechanics}</p>
+            <div className="grid gap-4 md:grid-cols-2 print:grid-cols-2">
+              <div className="break-inside-avoid rounded-2xl border border-rose-200 bg-rose-50 p-5">
+                <p className="mb-3 font-bold text-rose-700">🔥 Burnout risk factors</p>
+                <Bullets items={report.burnoutRisks ?? []} dot="bg-rose-400" />
+              </div>
+              <div className="break-inside-avoid rounded-2xl border border-sky-200 bg-sky-50 p-5">
+                <p className="mb-3 font-bold text-sky-700">🌊 Emotional reset triggers</p>
+                <Bullets items={report.resetTriggers ?? []} dot="bg-sky-400" />
+              </div>
             </div>
-          </div>
-        )}
+          </Reveal>
 
-        {/* Geschützte Bereiche (verschwommen bei isUnlocked === false) */}
-        <div className={!isUnlocked ? "blur-md select-none pointer-events-none opacity-30 transition-all duration-300" : ""}>
-          
-          <SectionHeader n={1} icon="🧠" title="Executive Summary" sub="Your core psychological profile at a glance" tone="indigo" />
-          <div className="grid gap-5">
-            <Reveal className={`${card} print:break-inside-auto`}>
-              {report?.executiveSummary ? (
-                <>
-                  <p className="text-base leading-relaxed text-slate-800 print:text-sm">{report.executiveSummary}</p>
-                  {!!report.traitInteractions?.length && (
-                    <div className="mt-5 border-t border-slate-100 pt-4">
-                      <p className="mb-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Dominant trait interactions</p>
-                      <ol className="space-y-3 text-sm text-slate-700">
-                        {report.traitInteractions.map((t, i) => (
-                          <li key={i} className="flex gap-3"><span className="font-extrabold text-indigo-600">{i + 1}.</span><span>{t}</span></li>
-                        ))}
-                      </ol>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <p className="text-sm text-slate-600">
-                  {status === "loading" ? "Your personal summary is being written…" : "Here is what your scores say:"}{" "}
-                  {INSIGHTS[arch.top[0]][band(scores[arch.top[0]])]}
+          {/* 03 Thrive */}
+          <SectionHeader n={3} icon="🚀" title="Workplace & Life Thrive Zones" sub="Where your engine runs at full speed" tone="emerald" />
+          <div className="mb-5">{workspaceCard}</div>
+          <div className="grid gap-4 md:grid-cols-3 print:grid-cols-3">
+            {(report.thriveZones ?? []).map((z, i) => (
+              <Reveal key={i} className={card}>
+                <p className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-emerald-600">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" /> Thrive zone #{i + 1}
                 </p>
-              )}
-            </Reveal>
+                <p className="mb-4 text-lg font-extrabold leading-snug text-slate-900">{z.title}</p>
+                <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">Ideal role</p>
+                <p className="mb-4 text-sm text-slate-700">{z.idealRole}</p>
+                <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">Deep work conditions</p>
+                <p className="text-sm text-slate-700">{z.deepWork}</p>
+              </Reveal>
+            ))}
           </div>
 
-          {/* Trait Breakdown & Workspace Style */}
-          <div className="print:break-before-page">
-            <Reveal className={`${card} mt-5`}>
-              <p className="mb-5 text-[11px] font-bold uppercase tracking-wider text-slate-500">Trait breakdown</p>
-              <div className="grid gap-x-10 gap-y-6 md:grid-cols-2 print:grid-cols-2">
-                {TRAIT_ORDER.map((k) => {
-                  const v = scores[k];
-                  return (
-                    <div key={k} className="break-inside-avoid">
-                      <div className="mb-1.5 flex items-baseline justify-between">
-                        <span className="font-bold text-slate-900">{TRAIT_META[k].name}</span>
-                        <span className="text-lg font-extrabold" style={{ color: TRAIT_META[k].color }}>
-                          <CountUp to={v} />%
-                        </span>
-                      </div>
-                      <div className="mb-2 h-2.5 overflow-hidden rounded-full bg-slate-100">
-                        <motion.div
-                          className="h-full rounded-full"
-                          style={{ background: TRAIT_META[k].color }}
-                          initial={{ width: 0 }}
-                          whileInView={{ width: `${v}%` }}
-                          viewport={{ once: true }}
-                          transition={{ duration: 1 }}
-                        />
-                      </div>
-                      <p className="text-xs leading-relaxed text-slate-500">{INSIGHTS[k][band(v)]}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            </Reveal>
-
-            <Reveal className={`${card} mt-5`}>
-              <p className="mb-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">Your workspace style</p>
-              <div className="grid gap-5 md:grid-cols-2 print:grid-cols-2">
-                {SLIDERS.map((s) => {
-                  const v = sliders[s.id] ?? 50;
-                  const label = v < 40 ? s.left_label : v > 60 ? s.right_label : "Balanced between both";
-                  return (
-                    <div key={s.id}>
-                      <div className="mb-1 flex justify-between text-xs">
-                        <span className="font-bold text-slate-700">{s.dimension}</span>
-                        <span className="font-medium text-fuchsia-600">{label}</span>
-                      </div>
-                      <div className="relative h-2 rounded-full bg-gradient-to-r from-violet-200 to-fuchsia-200">
-                        <div className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-violet-600 shadow" style={{ left: `${v}%` }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </Reveal>
-          </div>
-
-          {status === "loading" && <Loading />}
-          {status === "error" && (
-            <div className="mt-10 rounded-3xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-900">
-              The personal report is not available right now ({errMsg}).
-            </div>
-          )}
-
-          {report && (
-            <>
-              {/* Thrive Zones */}
-              <SectionHeader n={3} icon="🚀" title="Workplace & Life Thrive Zones" sub="Where your engine runs at full speed" tone="emerald" />
-              <div className="grid gap-4 md:grid-cols-3 print:grid-cols-3">
-                {(report.thriveZones ?? []).map((z, i) => (
-                  <Reveal key={i} className={card}>
-                    <p className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-emerald-600">
-                      <span className="h-2 w-2 rounded-full bg-emerald-500" /> Thrive zone #{i + 1}
-                    </p>
-                    <p className="mb-4 text-lg font-extrabold leading-snug text-slate-900">{z.title}</p>
-                    <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">Ideal role</p>
-                    <p className="mb-4 text-sm text-slate-700">{z.idealRole}</p>
-                    <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">Deep work conditions</p>
-                    <p className="text-sm text-slate-700">{z.deepWork}</p>
-                  </Reveal>
-                ))}
-              </div>
-
-              {/* Friction Zones */}
-              <SectionHeader n={4} icon="⚠️" title="Friction & Challenge Zones" sub="Behavioural pitfalls, and 3 actionable moves each" tone="amber" pageBreak />
-              <div className="grid gap-4 md:grid-cols-3 print:grid-cols-1">
-                {(report.frictionPoints ?? []).map((f, i) => (
-                  <Reveal key={i} className={card}>
-                    <p className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-amber-600">
-                      <span className="h-2 w-2 rounded-full bg-amber-500" /> Friction #{i + 1}
-                    </p>
-                    <p className="mb-4 font-extrabold leading-snug text-slate-900">{f.issue}</p>
-                    <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">Communication blind spot</p>
-                    <p className="mb-4 text-sm text-slate-700">{f.blindSpot}</p>
-                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                      <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-amber-700">Mitigation strategies</p>
-                      <ul className="space-y-2 text-sm text-slate-700">
-                        {(f.strategies ?? []).map((s, j) => (
-                          <li key={j} className="flex gap-2"><span className="font-bold text-amber-600">✓</span><span>{s}</span></li>
-                        ))}
-                      </ul>
-                    </div>
-                  </Reveal>
-                ))}
-              </div>
-
-              {/* Geographical Alignment */}
-              <SectionHeader n={5} icon="🌍" title="Geographical & Cultural Alignment" sub="Three cultures that may match your values, pacing and norms" tone="fuchsia" pageBreak />
-              <div className="grid gap-4 md:grid-cols-3 print:grid-cols-1">
-                {(report.countries ?? []).map((c, i) => (
-                  <Reveal key={i} className={card}>
-                    <div className="mb-2 flex items-center justify-between">
-                      <p className="text-xl font-extrabold text-slate-900">{c.name}</p>
-                      <span className="rounded-full border border-fuchsia-200 bg-fuchsia-50 px-3 py-1 text-xs font-bold text-fuchsia-700">{c.fit}% fit</span>
-                    </div>
-                    <div className="mb-4 h-2 overflow-hidden rounded-full bg-fuchsia-100">
-                      <motion.div
-                        className="h-full rounded-full bg-gradient-to-r from-fuchsia-500 to-violet-500"
-                        initial={{ width: 0 }}
-                        whileInView={{ width: `${c.fit}%` }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 1 }}
-                      />
-                    </div>
-                    {([["Values alignment", c.values], ["Pacing match", c.pacing], ["Social norms", c.norms]] as const).map(([label, text]) => (
-                      <div key={label} className="mb-3 last:mb-0">
-                        <p className="mb-0.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
-                        <p className="text-sm text-slate-700">{text}</p>
-                      </div>
+          {/* 04 Friction */}
+          <SectionHeader n={4} icon="⚠️" title="Friction & Challenge Zones" sub="Behavioural pitfalls, and 3 actionable moves each" tone="amber" />
+          <div className="grid gap-4 md:grid-cols-3 print:grid-cols-3">
+            {(report.frictionPoints ?? []).map((f, i) => (
+              <Reveal key={i} className={card}>
+                <p className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-amber-600">
+                  <span className="h-2 w-2 rounded-full bg-amber-500" /> Friction #{i + 1}
+                </p>
+                <p className="mb-4 font-extrabold leading-snug text-slate-900">{f.issue}</p>
+                <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">Communication blind spot</p>
+                <p className="mb-4 text-sm text-slate-700">{f.blindSpot}</p>
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-amber-700">Mitigation strategies</p>
+                  <ul className="space-y-2 text-sm text-slate-700">
+                    {(f.strategies ?? []).map((s, j) => (
+                      <li key={j} className="flex gap-2"><span className="font-bold text-amber-600">✓</span><span>{s}</span></li>
                     ))}
-                  </Reveal>
-                ))}
-              </div>
+                  </ul>
+                </div>
+              </Reveal>
+            ))}
+          </div>
 
-              {/* 7-Day Plan */}
-              <SectionHeader n={6} icon="📅" title="7-Day Action Blueprint" sub="Micro-habits tuned to your profile" tone="teal" pageBreak />
-              <SevenDays plan={report.sevenDayPlan ?? []} />
-            </>
-          )}
-        </div>
-      </div>
+          {/* 05 Countries */}
+          <SectionHeader n={5} icon="🌍" title="Geographical & Cultural Alignment" sub="Three cultures that may match your values, pacing and norms (loose suggestions)" tone="fuchsia" />
+          <div className="grid gap-4 md:grid-cols-3 print:grid-cols-1">
+            {(report.countries ?? []).map((c, i) => (
+              <Reveal key={i} className={card}>
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-xl font-extrabold text-slate-900">{c.name}</p>
+                  <span className="rounded-full border border-fuchsia-200 bg-fuchsia-50 px-3 py-1 text-xs font-bold text-fuchsia-700">{c.fit}% fit</span>
+                </div>
+                <div className="mb-4 h-2 overflow-hidden rounded-full bg-fuchsia-100">
+                  <motion.div
+                    className="h-full rounded-full bg-gradient-to-r from-fuchsia-500 to-violet-500"
+                    initial={{ width: 0 }}
+                    whileInView={{ width: `${c.fit}%` }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 1 }}
+                  />
+                </div>
+                {([["Values alignment", c.values], ["Pacing match", c.pacing], ["Social norms", c.norms]] as const).map(([label, text]) => (
+                  <div key={label} className="mb-3 last:mb-0">
+                    <p className="mb-0.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+                    <p className="text-sm text-slate-700">{text}</p>
+                  </div>
+                ))}
+              </Reveal>
+            ))}
+          </div>
+
+          {/* 06 Seven days */}
+          <SectionHeader n={6} icon="📅" title="7-Day Action Blueprint" sub="Micro-habits tuned to your profile: one week, tiny moves" tone="teal" />
+          <SevenDays plan={report.sevenDayPlan ?? []} />
+        </>
+      )}
 
       <p className="mt-12 text-center text-xs text-slate-400">{DISCLAIMER}</p>
 
-      {/* FOOTER BUTTONS */}
       <div className="mt-6 flex flex-col gap-3 sm:flex-row print:hidden">
-        {isUnlocked && (
-          <button type="button" onClick={printPdf} className="flex-1 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-500 py-3.5 font-bold text-white shadow-lg shadow-violet-300">
-            Download as PDF
-          </button>
-        )}
+        <button type="button" onClick={printPdf} disabled={unlocked !== true} className="flex-1 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-500 py-3.5 font-bold text-white shadow-lg shadow-violet-300 disabled:opacity-40 disabled:shadow-none">
+          Download as PDF
+        </button>
         <button type="button" onClick={onRetake} className="flex-1 rounded-2xl border border-slate-200 bg-white py-3.5 font-semibold text-slate-600 hover:bg-slate-50">
-          Retake Assessment
+          Retake
         </button>
       </div>
     </div>
