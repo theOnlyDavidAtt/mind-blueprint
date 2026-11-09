@@ -30,7 +30,7 @@ const TONES = {
 } as const;
 type Tone = keyof typeof TONES;
 
-const card = "break-inside-avoid rounded-3xl border border-slate-200/80 bg-white p-8 shadow-sm shadow-slate-200/50 print:p-6 print:mb-4";
+const card = "break-inside-avoid rounded-3xl border border-slate-200/80 bg-white p-8 shadow-sm shadow-slate-200/50 print:p-5 print:mb-4";
 
 function CountUp({ to }: { to: number }) {
   const [v, setV] = useState(0);
@@ -57,7 +57,7 @@ function Reveal({ children, className = "" }: { children: React.ReactNode; class
 
 function SectionHeader({ n, icon, title, sub, tone }: { n: number; icon: string; title: string; sub: string; tone: Tone }) {
   return (
-    <Reveal className="mb-6 mt-12 flex break-after-avoid items-center gap-4 print:mt-4 print:mb-4 print:break-after-avoid">
+    <Reveal className="mb-6 mt-12 flex break-after-avoid items-center gap-4 print:mt-6 print:mb-4 print:break-after-avoid">
       <div className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border text-3xl ${TONES[tone].tile}`}>{icon}</div>
       <div>
         <p className={`text-xs font-bold uppercase tracking-[0.2em] ${TONES[tone].label}`}>Section {String(n).padStart(2, "0")}</p>
@@ -287,22 +287,21 @@ export default function Results({
 
   const chartData = TRAIT_ORDER.map((k) => ({ trait: SHORT[k], value: scores[k] }));
 
-  // Vergrößerter, zentrierter Workspace Style für das Deckblatt
   const workspaceCard = (
-      <Reveal className={`${card} text-center flex flex-col items-center print:p-6 print:mb-0`}>
-        <p className="mb-4 text-sm font-bold uppercase tracking-wider text-slate-500 text-center w-full">Your workspace style</p>
-        <div className="grid gap-5 md:grid-cols-2 print:grid-cols-2 w-full text-left">
+      <Reveal className={`${card} text-center flex flex-col items-center print:p-4 print:mb-0`}>
+        <p className="mb-3 text-sm font-bold uppercase tracking-wider text-slate-500 text-center w-full">Your workspace style</p>
+        <div className="grid gap-4 md:grid-cols-2 print:grid-cols-2 w-full text-left">
           {SLIDERS.map((s) => {
             const v = sliders[s.id] ?? 50;
             const label = v < 40 ? s.left_label : v > 60 ? s.right_label : "Balanced between both";
             return (
               <div key={s.id}>
-                <div className="mb-2 flex justify-between text-sm">
+                <div className="mb-1.5 flex justify-between text-sm">
                   <span className="font-bold text-slate-700">{s.dimension}</span>
                   <span className="font-medium text-fuchsia-600">{label}</span>
                 </div>
-                <div className="relative h-3 rounded-full bg-gradient-to-r from-violet-200 to-fuchsia-200">
-                  <div className="absolute top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-violet-600 shadow" style={{ left: `${v}%` }} />
+                <div className="relative h-2.5 rounded-full bg-gradient-to-r from-violet-200 to-fuchsia-200">
+                  <div className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-violet-600 shadow" style={{ left: `${v}%` }} />
                 </div>
               </div>
             );
@@ -312,37 +311,37 @@ export default function Results({
   );
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-8 print:w-full print:max-w-none print:px-8 print:py-6">
-      {/* ================= SEITE 1: Deckblatt (Zentriert, große Schrift) ================= */}
-      <div className="print:min-h-[96vh] print:flex print:flex-col print:justify-between print:break-after-page text-center">
+    <div className="mx-auto w-full max-w-5xl px-4 py-8 print:w-full print:max-w-none print:px-8 print:py-4">
+      {/* ================= SEITE 1: Deckblatt (Keine erzwungene Mind-Height, perfekt kompakt und lückenlos) ================= */}
+      <div className="print:break-after-page text-center space-y-4 print:space-y-3">
         <motion.div
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="break-inside-avoid rounded-[2.5rem] bg-gradient-to-br from-violet-600 via-fuchsia-500 to-amber-400 p-12 text-center text-white shadow-2xl shadow-violet-300 sm:p-14 print:p-8 print:mb-6 print:shadow-none flex flex-col items-center justify-center"
+          className="break-inside-avoid rounded-[2.5rem] bg-gradient-to-br from-violet-600 via-fuchsia-500 to-amber-400 p-8 text-center text-white shadow-2xl shadow-violet-300 sm:p-12 print:p-6 print:shadow-none flex flex-col items-center justify-center"
         >
-          <p className="mb-3 text-sm font-bold uppercase tracking-[0.3em] text-white/90 text-center">Your profile type</p>
-          <motion.div animate={{ y: [0, -8, 0] }} transition={{ repeat: Infinity, duration: 2.5 }} className="mb-3 text-7xl print:text-6xl text-center">
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.3em] text-white/90 text-center">Your profile type</p>
+          <motion.div animate={{ y: [0, -6, 0] }} transition={{ repeat: Infinity, duration: 2.5 }} className="mb-2 text-6xl print:text-5xl text-center">
             {arch.emoji}
           </motion.div>
-          <h1 className="mb-4 text-4xl font-extrabold sm:text-6xl print:mb-3 print:text-5xl text-center">{arch.title}</h1>
-          <div className="flex flex-wrap justify-center gap-3 text-center">
+          <h1 className="mb-3 text-4xl font-extrabold sm:text-6xl print:mb-2 print:text-4xl text-center">{arch.title}</h1>
+          <div className="flex flex-wrap justify-center gap-2.5 text-center">
             {arch.top.map((k) => (
-              <span key={k} className="rounded-full bg-white/25 px-5 py-2 text-base font-semibold backdrop-blur text-center">
+              <span key={k} className="rounded-full bg-white/25 px-4 py-1.5 text-sm font-semibold backdrop-blur text-center">
                 {TRAIT_META[k].name} · {scores[k]}
               </span>
             ))}
           </div>
         </motion.div>
 
-        <div className="space-y-6 flex flex-col items-center w-full">
-          <Reveal className={`${card} print:p-6 w-full text-center flex flex-col items-center`}>
+        <div className="space-y-4 flex flex-col items-center w-full print:space-y-3">
+          <Reveal className={`${card} print:p-4 w-full text-center flex flex-col items-center`}>
             <p className="text-base font-bold text-slate-900 text-center w-full">OCEAN profile</p>
             <p className="mb-2 text-sm text-slate-500 text-center w-full">Your Big Five footprint</p>
-            <div className="h-64 w-full print:h-60 flex justify-center items-center">
+            <div className="h-60 w-full print:h-52 flex justify-center items-center">
               <ResponsiveContainer width="100%" height="100%">
-                <RadarChart data={chartData} outerRadius="75%" margin={{ top: 15, right: 30, bottom: 15, left: 30 }}>
+                <RadarChart data={chartData} outerRadius="72%" margin={{ top: 10, right: 25, bottom: 10, left: 25 }}>
                   <PolarGrid stroke="#cbd5e1" />
-                  <PolarAngleAxis dataKey="trait" tick={{ fill: "#334155", fontSize: 13, fontWeight: 700 }} />
+                  <PolarAngleAxis dataKey="trait" tick={{ fill: "#334155", fontSize: 12, fontWeight: 700 }} />
                   <Radar dataKey="value" stroke="#7c3aed" strokeWidth={3} fill="#8b5cf6" fillOpacity={0.4} isAnimationActive={false} />
                 </RadarChart>
               </ResponsiveContainer>
