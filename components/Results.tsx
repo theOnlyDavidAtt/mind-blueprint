@@ -7,8 +7,8 @@ import { PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer } fro
 import { DISCLAIMER, SLIDERS, TRAIT_META, TRAIT_ORDER, archetype, band, type Scores } from "@/lib/scoring";
 import { INSIGHTS } from "@/lib/insights";
 
-// HIER DEINEN ECHTEN WHOP CHECKOUT LINK EINTRAGEN:
-const WHOP_CHECKOUT_URL = "https://whop.com/checkout/YOUR_PRODUCT_ID";
+// ECHTER WHOP CHECKOUT LINK
+const WHOP_CHECKOUT_URL = "https://whop.com/mind-blueprint-ei1gnyebx-david-50dd/mind-potential-architect/";
 
 type Report = {
   executiveSummary?: string;
@@ -165,10 +165,9 @@ export default function Results({
   const started = useRef(false);
   const paywallRef = useRef<HTMLDivElement>(null);
 
-  // 1. ZUSTANDSSICHERUNG & WHOP-PAYWALL-PRÜFUNG
+  // ZUSTANDSSICHERUNG & WHOP-PAYWALL-PRÜFUNG
   useEffect(() => {
     if (typeof window !== "undefined") {
-      // Aktuelle Scores im LocalStorage sichern (falls der Nutzer klickt)
       if (initialScores && Object.keys(initialScores).length > 0) {
         localStorage.setItem("mind_scores", JSON.stringify(initialScores));
         localStorage.setItem("mind_sliders", JSON.stringify(initialSliders));
@@ -178,7 +177,6 @@ export default function Results({
       if (params.get("paid") === "true") {
         setIsUnlocked(true);
 
-        // Scores aus dem Speicher wiederherstellen, falls durch Seiten-Reload verloren
         const savedScores = localStorage.getItem("mind_scores");
         const savedSliders = localStorage.getItem("mind_sliders");
         if (savedScores && savedSliders) {
@@ -190,7 +188,7 @@ export default function Results({
           }
         }
 
-        // URL CLEANUP: Löscht ?paid=true aus der Adresszeile, damit man den Link nicht weiterleiten kann!
+        // URL CLEANUP
         const newUrl = window.location.pathname;
         window.history.replaceState({}, document.title, newUrl);
       }
@@ -199,7 +197,6 @@ export default function Results({
 
   const arch = archetype(scores);
 
-  // 2. REPORT VON DER API LADEN
   useEffect(() => {
     confetti({ particleCount: 150, spread: 90, origin: { y: 0.25 } });
     if (started.current) return;
@@ -310,7 +307,7 @@ export default function Results({
               <span className="mb-3 inline-block text-4xl">🔒</span>
               <h3 className="mb-2 text-2xl font-black text-slate-900">Unlock Your Full Blueprint</h3>
               <p className="mb-6 text-sm leading-relaxed text-slate-600">
-                Get immediate access to your <strong>Executive Summary</strong>, <strong>Trait Breakdowns</strong>, <strong>37-Day Action Plan</strong>, and <strong>Thrive Zones</strong>.
+                Get immediate access to your <strong>Executive Summary</strong>, <strong>Trait Breakdowns</strong>, <strong>7-Day Action Plan</strong>, and <strong>Thrive Zones</strong>.
               </p>
               <a
                 href={WHOP_CHECKOUT_URL}
@@ -484,7 +481,7 @@ export default function Results({
               </div>
 
               {/* 7-Day Plan */}
-              <SectionHeader n={6} icon="📅" title="37-Day Action Blueprint" sub="Micro-habits tuned to your profile" tone="teal" pageBreak />
+              <SectionHeader n={6} icon="📅" title="7-Day Action Blueprint" sub="Micro-habits tuned to your profile" tone="teal" pageBreak />
               <SevenDays plan={report.sevenDayPlan ?? []} />
             </>
           )}
