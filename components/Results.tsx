@@ -8,7 +8,7 @@ import { DISCLAIMER, SLIDERS, TRAIT_META, TRAIT_ORDER, archetype, band, type Sco
 import { INSIGHTS } from "@/lib/insights";
 
 // HIER DEINEN ECHTEN WHOP CHECKOUT LINK EINTRAGEN:
-const WHOP_CHECKOUT_URL = "https://whop.com/mind-blueprint-ei1gnyebx-david-50dd/mind-potential-architect/";
+const WHOP_CHECKOUT_URL = "https://whop.com/checkout/YOUR_PRODUCT_ID";
 
 type Report = {
   executiveSummary?: string;
@@ -148,31 +148,58 @@ function SevenDays({ plan }: { plan: { theme: string; tasks: string[] }[] }) {
 }
 
 export default function Results({
-  scores,
-  sliders,
+  scores: initialScores,
+  sliders: initialSliders,
   onRetake,
 }: {
   scores: Scores;
   sliders: Record<string, number>;
   onRetake: () => void;
 }) {
+  const [scores, setScores] = useState<Scores>(initialScores);
+  const [sliders, setSliders] = useState<Record<string, number>>(initialSliders);
   const [report, setReport] = useState<Report | null>(null);
   const [status, setStatus] = useState<"loading" | "done" | "error">("loading");
   const [errMsg, setErrMsg] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
   const started = useRef(false);
-  const arch = archetype(scores);
   const paywallRef = useRef<HTMLDivElement>(null);
 
+  // 1. ZUSTANDSSICHERUNG & WHOP-PAYWALL-PRÜFUNG
   useEffect(() => {
     if (typeof window !== "undefined") {
+      // Aktuelle Scores im LocalStorage sichern (falls der Nutzer klickt)
+      if (initialScores && Object.keys(initialScores).length > 0) {
+        localStorage.setItem("mind_scores", JSON.stringify(initialScores));
+        localStorage.setItem("mind_sliders", JSON.stringify(initialSliders));
+      }
+
       const params = new URLSearchParams(window.location.search);
       if (params.get("paid") === "true") {
         setIsUnlocked(true);
+
+        // Scores aus dem Speicher wiederherstellen, falls durch Seiten-Reload verloren
+        const savedScores = localStorage.getItem("mind_scores");
+        const savedSliders = localStorage.getItem("mind_sliders");
+        if (savedScores && savedSliders) {
+          try {
+            setScores(JSON.parse(savedScores));
+            setSliders(JSON.parse(savedSliders));
+          } catch (e) {
+            console.error("Failed to restore scores", e);
+          }
+        }
+
+        // URL CLEANUP: Löscht ?paid=true aus der Adresszeile, damit man den Link nicht weiterleiten kann!
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
       }
     }
-  }, []);
+  }, [initialScores, initialSliders]);
 
+  const arch = archetype(scores);
+
+  // 2. REPORT VON DER API LADEN
   useEffect(() => {
     confetti({ particleCount: 150, spread: 90, origin: { y: 0.25 } });
     if (started.current) return;
@@ -215,7 +242,7 @@ export default function Results({
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8">
-      {/* SEITE 1: Hero & OCEAN (IMMER KOSTENLOS ALS APPETIZER) */}
+      {/* SEITE 1: Hero & OCEAN (KOSTENLOS ALS TEASER) */}
       <motion.div
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -251,7 +278,7 @@ export default function Results({
         </Reveal>
       </div>
 
-      {/* HINWEIS-PFEIL ZUR PAYWALL (Führt direkt zum Popup) */}
+      {/* HINWEIS-PFEIL ZUR PAYWALL */}
       {!isUnlocked && (
         <div className="my-8 text-center print:hidden">
           <button
@@ -274,7 +301,7 @@ export default function Results({
       )}
 
       {/* ======================================================== */}
-      {/* AB HIER: DIE FRÜHE PAYWALL / GESCHÜTZTE INHALTE           */}
+      {/* AB HIER: DIE PAYWALL & GESCHÜTZTE INHALTE                */}
       {/* ======================================================== */}
       <div ref={paywallRef} className="relative mt-8">
         {!isUnlocked && (
@@ -283,7 +310,7 @@ export default function Results({
               <span className="mb-3 inline-block text-4xl">🔒</span>
               <h3 className="mb-2 text-2xl font-black text-slate-900">Unlock Your Full Blueprint</h3>
               <p className="mb-6 text-sm leading-relaxed text-slate-600">
-                Get immediate access to your <strong>Executive Summary</strong>, <strong>Trait Breakdowns</strong>, <strong>7-Day Action Plan</strong>, and <strong>Thrive Zones</strong>.
+                Get immediate access to your <strong>Executive Summary</strong>, <strong>Trait Breakdowns</strong>, <strong>37-Day Action Plan</strong>, and <strong>Thrive Zones</strong>.
               </p>
               <a
                 href={WHOP_CHECKOUT_URL}
@@ -296,7 +323,7 @@ export default function Results({
           </div>
         )}
 
-        {/* Die geschützten Abschnitte (verschwommen, wenn isUnlocked === false) */}
+        {/* Geschützte Bereiche (verschwommen bei isUnlocked === false) */}
         <div className={!isUnlocked ? "blur-md select-none pointer-events-none opacity-30 transition-all duration-300" : ""}>
           
           <SectionHeader n={1} icon="🧠" title="Executive Summary" sub="Your core psychological profile at a glance" tone="indigo" />
@@ -457,7 +484,7 @@ export default function Results({
               </div>
 
               {/* 7-Day Plan */}
-              <SectionHeader n={6} icon="📅" title="7-Day Action Blueprint" sub="Micro-habits tuned to your profile" tone="teal" pageBreak />
+              <SectionHeader n={6} icon="📅" title="37-Day Action Blueprint" sub="Micro-habits tuned to your profile" tone="teal" pageBreak />
               <SevenDays plan={report.sevenDayPlan ?? []} />
             </>
           )}
