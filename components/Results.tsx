@@ -30,7 +30,64 @@ const TONES = {
 } as const;
 type Tone = keyof typeof TONES;
 
-const card = "break-inside-avoid rounded-3xl border border-slate-200/80 bg-white p-8 shadow-sm shadow-slate-200/50 print:p-6 print:mb-4";
+const card =
+  "break-inside-avoid rounded-3xl border border-slate-200/80 bg-white p-8 shadow-sm shadow-slate-200/50 print:p-5 print:shadow-none";
+
+/**
+ * PRINT_ROOT_PX ist der einzige "Regler" für die PDF-Schriftgröße.
+ * Alle Tailwind-Größen (rem) skalieren damit mit.
+ *  - Seite läuft über (Inhalt rutscht auf Folgeseite)  -> 15
+ *  - Seite ist zu leer                                  -> 17
+ */
+const PRINT_ROOT_PX = 16;
+
+/**
+ * Druck-Layout: jede "Seite" ist exakt ein A4-Blatt (210 x 296 mm).
+ * Die Grids sind hier als eigene Klassen definiert (statt md:/print: in Tailwind),
+ * damit sich Breakpoints und Print-Regeln nie gegenseitig überschreiben.
+ */
+const LAYOUT_CSS = `
+.pdf-page{display:flex;flex-direction:column;gap:1.5rem}
+.grid-2,.grid-3,.in-2,.in-3,.in-fr{display:grid;gap:1.5rem}
+.in-2,.in-3,.in-fr{gap:1rem}
+@media screen{
+  .pdf-page{margin-bottom:2.5rem}
+  .pdf-join{margin-bottom:1.5rem}
+  .screen-hide{display:none!important}
+}
+@media screen and (min-width:768px){
+  .grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@page{size:A4 portrait;margin:0}
+@media print{
+  html{font-size:${PRINT_ROOT_PX}px}
+  html,body{width:210mm;margin:0;background:#f5f3ff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .pdf-page{
+    width:210mm;height:296mm;box-sizing:border-box;padding:10mm 12mm 14mm;gap:5mm;margin:0;
+    background:#f5f3ff;overflow:visible;
+    break-after:page;page-break-after:always;break-inside:avoid;
+  }
+  .pdf-page:last-of-type{break-after:auto;page-break-after:auto}
+  .grid-2{grid-template-columns:repeat(2,minmax(0,1fr));gap:4mm}
+  .grid-3{grid-template-columns:minmax(0,1fr);gap:5mm}
+  /* drei gleich hohe Karten übereinander, füllen den Rest der Seite */
+  .stack{flex:1 1 0;min-height:0;grid-template-rows:repeat(3,minmax(auto,1fr))}
+  .stack>*{display:flex;flex-direction:column;justify-content:center;margin:0!important}
+  .in-2{grid-template-columns:repeat(2,minmax(0,1fr));gap:6mm}
+  .in-3{grid-template-columns:repeat(3,minmax(0,1fr));gap:5mm}
+  .in-fr{grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:6mm}
+  .grow{flex:1 1 0;min-height:0}
+  .fill{flex:1 1 0;min-height:0;display:flex;flex-direction:column}
+  .spread{flex:1 1 auto;align-content:space-evenly}
+  .week{flex:1 1 0;min-height:0;grid-auto-rows:auto;align-content:space-between;gap:4mm}
+  .week>*{margin:0!important}
+  .week>*:last-child:nth-child(odd){grid-column:span 2}
+  .print-fixed-footer{position:fixed;left:0;right:0;bottom:4mm;padding:0 12mm;text-align:center}
+  /* Reveal-Animationen dürfen im PDF nie "unsichtbar" hängen bleiben */
+  div[style*="opacity"]{opacity:1!important;transform:none!important}
+}
+`;
 
 function CountUp({ to }: { to: number }) {
   const [v, setV] = useState(0);
@@ -55,14 +112,39 @@ function Reveal({ children, className = "" }: { children: React.ReactNode; class
   );
 }
 
-function SectionHeader({ n, icon, title, sub, tone }: { n: number; icon: string; title: string; sub: string; tone: Tone }) {
+/** Eine Seite = ein A4-Blatt im PDF. Nichts darin wird über Seiten verteilt. */
+function Page({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return <section className={`pdf-page ${className}`}>{children}</section>;
+}
+
+function SectionHeader({
+  n,
+  icon,
+  title,
+  sub,
+  tone,
+  className = "",
+}: {
+  n: number;
+  icon: string;
+  title: string;
+  sub: string;
+  tone: Tone;
+  className?: string;
+}) {
   return (
-    <Reveal className="mb-6 mt-4 flex break-after-avoid items-center gap-4 print:mt-0 print:mb-4 print:break-after-avoid">
-      <div className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border text-3xl ${TONES[tone].tile}`}>{icon}</div>
+    <Reveal className={`mb-2 mt-4 flex break-after-avoid items-center gap-4 print:m-0 ${className}`}>
+      <div
+        className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border text-3xl print:h-[3.75rem] print:w-[3.75rem] ${TONES[tone].tile}`}
+      >
+        {icon}
+      </div>
       <div>
-        <p className={`text-xs font-bold uppercase tracking-[0.2em] ${TONES[tone].label}`}>Section {String(n).padStart(2, "0")}</p>
-        <h2 className="text-3xl font-extrabold text-slate-900">{title}</h2>
-        <p className="text-base text-slate-500">{sub}</p>
+        <p className={`text-xs font-bold uppercase tracking-[0.2em] print:text-[0.8rem] ${TONES[tone].label}`}>
+          Section {String(n).padStart(2, "0")}
+        </p>
+        <h2 className="text-3xl font-extrabold text-slate-900 print:text-[1.9rem] print:leading-tight">{title}</h2>
+        <p className="text-base text-slate-500 print:text-[1.05rem]">{sub}</p>
       </div>
     </Reveal>
   );
@@ -70,11 +152,11 @@ function SectionHeader({ n, icon, title, sub, tone }: { n: number; icon: string;
 
 function Bullets({ items, dot }: { items: string[]; dot: string }) {
   return (
-    <ul className="space-y-4 text-base text-slate-700">
+    <ul className="space-y-4 text-base text-slate-700 print:flex print:flex-1 print:flex-col print:justify-around print:space-y-0 print:gap-3">
       {items.map((t, i) => (
         <li key={i} className="flex gap-3">
           <span className={`mt-2 h-3 w-3 shrink-0 rounded-full ${dot}`} />
-          <span className="text-base leading-relaxed">{t}</span>
+          <span className="text-base leading-relaxed print:text-[1.05rem]">{t}</span>
         </li>
       ))}
     </ul>
@@ -112,10 +194,12 @@ function SevenDays({ plan }: { plan: { theme: string; tasks: string[] }[] }) {
 
   return (
     <>
-      <Reveal className={`${card} mb-4 print:hidden`}>
+      <Reveal className={`${card} print:hidden`}>
         <div className="mb-3 flex justify-between text-base font-bold text-slate-700">
           <span>{count === total && total > 0 ? "Week complete! 🎉" : "Your week so far"}</span>
-          <span>{count} / {total}</span>
+          <span>
+            {count} / {total}
+          </span>
         </div>
         <div className="h-4 overflow-hidden rounded-full bg-teal-100">
           <motion.div
@@ -124,14 +208,18 @@ function SevenDays({ plan }: { plan: { theme: string; tasks: string[] }[] }) {
           />
         </div>
       </Reveal>
-      <div className="grid gap-4 md:grid-cols-2 print:grid-cols-2 print:gap-3">
+      <div className="grid-2 week">
         {plan.map((d, di) => (
-          <Reveal key={di} className={`${card} print:mb-0 print:p-4`}>
+          <Reveal key={di} className={`${card} print:p-4`}>
             <div className="mb-2.5 flex items-center justify-between">
-              <p className="text-sm font-bold uppercase tracking-wider text-teal-700">Day {di + 1} · {days[di] ?? ""}</p>
-              <span className="rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-sm font-semibold text-teal-700">{d.theme}</span>
+              <p className="text-sm font-bold uppercase tracking-wider text-teal-700 print:text-[0.8rem]">
+                Day {di + 1} · {days[di] ?? ""}
+              </p>
+              <span className="rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-sm font-semibold text-teal-700 print:text-[0.8rem]">
+                {d.theme}
+              </span>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-3 print:space-y-2">
               {d.tasks.map((t, ti) => {
                 const key = `${di}-${ti}`;
                 const on = !!done[key];
@@ -139,13 +227,19 @@ function SevenDays({ plan }: { plan: { theme: string; tasks: string[] }[] }) {
                   <button key={key} type="button" onClick={() => toggle(key, di)} className="flex w-full gap-3 text-left">
                     <motion.span
                       animate={{ scale: on ? [1, 1.3, 1] : 1 }}
-                      className={`mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 text-sm font-bold ${
+                      className={`mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 text-sm font-bold print:h-5 print:w-5 ${
                         on ? "border-teal-500 bg-teal-500 text-white" : "border-teal-300 bg-white"
                       }`}
                     >
                       {on ? "✓" : ""}
                     </motion.span>
-                    <span className={`text-base leading-snug ${on ? "text-slate-400 line-through" : "text-slate-700"}`}>{t}</span>
+                    <span
+                      className={`text-base leading-snug print:text-[0.82rem] ${
+                        on ? "text-slate-400 line-through" : "text-slate-700"
+                      }`}
+                    >
+                      {t}
+                    </span>
                   </button>
                 );
               })}
@@ -177,13 +271,25 @@ export default function Results({
 
   const store = {
     get: (k: string) => {
-      try { return window.localStorage.getItem(k); } catch { return null; }
+      try {
+        return window.localStorage.getItem(k);
+      } catch {
+        return null;
+      }
     },
     set: (k: string, v: string) => {
-      try { window.localStorage.setItem(k, v); } catch { /* storage may be blocked */ }
+      try {
+        window.localStorage.setItem(k, v);
+      } catch {
+        /* storage may be blocked */
+      }
     },
     del: (k: string) => {
-      try { window.localStorage.removeItem(k); } catch { /* ignore */ }
+      try {
+        window.localStorage.removeItem(k);
+      } catch {
+        /* ignore */
+      }
     },
   };
 
@@ -192,7 +298,9 @@ export default function Results({
     setPayError("");
     try {
       window.localStorage.setItem("mpa_pending_payment", paymentId);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     for (let i = 0; i < 15; i++) {
       try {
         const res = await fetch("/api/whop/verify", {
@@ -201,7 +309,11 @@ export default function Results({
           body: JSON.stringify({ paymentId }),
         });
         if (res.ok) {
-          try { window.localStorage.removeItem("mpa_pending_payment"); } catch { /* ignore */ }
+          try {
+            window.localStorage.removeItem("mpa_pending_payment");
+          } catch {
+            /* ignore */
+          }
           setUnlocked(true);
           setVerifying(false);
           confetti({ particleCount: 180, spread: 100, origin: { y: 0.4 } });
@@ -213,7 +325,9 @@ export default function Results({
           setVerifying(false);
           return;
         }
-      } catch { /* network hiccup: retry */ }
+      } catch {
+        /* network hiccup: retry */
+      }
       await new Promise((r) => setTimeout(r, 2000));
     }
     setPayError("We could not confirm your payment yet. Please reload this page in a minute. Your purchase is safe.");
@@ -232,7 +346,9 @@ export default function Results({
       try {
         const r = await fetch("/api/access", { cache: "no-store" });
         ok = (await r.json()).unlocked === true;
-      } catch { /* treat as locked */ }
+      } catch {
+        /* treat as locked */
+      }
       setUnlocked(ok);
       if (!ok) {
         const pending = returned ?? store.get("mpa_pending_payment");
@@ -252,7 +368,9 @@ export default function Results({
         setStatus("done");
         return;
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     setStatus("loading");
     (async () => {
       try {
@@ -275,10 +393,11 @@ export default function Results({
 
   const SHORT: Record<string, string> = { O: "Openness", C: "Conscient.", E: "Extraversion", A: "Agreeable.", S: "Stability" };
   const printPdf = async () => {
-    const step = window.innerHeight * 0.8;
+    // Einmal komplett durchscrollen, damit alle Scroll-Animationen (Balken etc.) ausgelöst sind
+    const step = window.innerHeight * 0.6;
     for (let y = 0; y <= document.body.scrollHeight; y += step) {
       window.scrollTo(0, y);
-      await new Promise((r) => setTimeout(r, 120));
+      await new Promise((r) => setTimeout(r, 150));
     }
     await new Promise((r) => setTimeout(r, 1300));
     window.scrollTo(0, 0);
@@ -288,89 +407,120 @@ export default function Results({
   const chartData = TRAIT_ORDER.map((k) => ({ trait: SHORT[k], value: scores[k] }));
 
   const workspaceCard = (
-      <Reveal className={`${card} text-center flex flex-col items-center print:p-5 print:mb-0`}>
-        <p className="mb-3 text-base font-bold uppercase tracking-wider text-slate-500 text-center w-full">Your workspace style</p>
-        <div className="grid gap-4 md:grid-cols-2 print:grid-cols-2 w-full text-left">
-          {SLIDERS.map((s) => {
-            const v = sliders[s.id] ?? 50;
-            const label = v < 40 ? s.left_label : v > 60 ? s.right_label : "Balanced between both";
-            return (
-              <div key={s.id}>
-                <div className="mb-2 flex justify-between text-base">
-                  <span className="font-bold text-slate-700">{s.dimension}</span>
-                  <span className="font-medium text-fuchsia-600">{label}</span>
-                </div>
-                <div className="relative h-3 rounded-full bg-gradient-to-r from-violet-200 to-fuchsia-200">
-                  <div className="absolute top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-violet-600 shadow" style={{ left: `${v}%` }} />
-                </div>
+    <Reveal className={`${card} flex flex-col items-center text-center`}>
+      <p className="mb-4 w-full text-center text-base font-bold uppercase tracking-wider text-slate-500 print:text-[0.95rem]">
+        Your workspace style
+      </p>
+      <div className="grid-2 w-full text-left print:!gap-x-8 print:!gap-y-5">
+        {SLIDERS.map((s) => {
+          const v = sliders[s.id] ?? 50;
+          const label = v < 40 ? s.left_label : v > 60 ? s.right_label : "Balanced between both";
+          return (
+            <div key={s.id}>
+              <p className="text-base font-bold text-slate-800 print:text-[1.05rem]">{s.dimension}</p>
+              <p className="mb-2 text-base font-medium text-fuchsia-600 print:text-[0.95rem] print:leading-snug">{label}</p>
+              <div className="relative h-3 rounded-full bg-gradient-to-r from-violet-200 to-fuchsia-200">
+                <div
+                  className="absolute top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-violet-600 shadow"
+                  style={{ left: `${v}%` }}
+                />
               </div>
-            );
-          })}
-        </div>
-      </Reveal>
+            </div>
+          );
+        })}
+      </div>
+    </Reveal>
   );
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-8 print:w-full print:max-w-none print:px-8 print:py-4">
-      {/* ================= SEITE 1: Deckblatt (Perfekt gefüllt, große Schrift) ================= */}
-      <div className="print:break-after-page text-center space-y-4 print:space-y-4">
+    <div className="mx-auto w-full max-w-5xl px-4 py-8 print:m-0 print:w-[210mm] print:max-w-none print:p-0">
+      <style>{LAYOUT_CSS}</style>
+
+      {/* ================= SEITE 1: Deckblatt ================= */}
+      <Page>
         <motion.div
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="break-inside-avoid rounded-[2.5rem] bg-gradient-to-br from-violet-600 via-fuchsia-500 to-amber-400 p-10 text-center text-white shadow-2xl shadow-violet-300 sm:p-12 print:p-8 print:shadow-none flex flex-col items-center justify-center"
+          className="flex break-inside-avoid flex-col items-center justify-center rounded-[2.5rem] bg-gradient-to-br from-violet-600 via-fuchsia-500 to-amber-400 p-10 text-center text-white shadow-2xl shadow-violet-300 sm:p-12 print:rounded-[2rem] print:p-8 print:shadow-none"
         >
-          <p className="mb-2 text-sm font-bold uppercase tracking-[0.3em] text-white/90 text-center">Your profile type</p>
-          <motion.div animate={{ y: [0, -6, 0] }} transition={{ repeat: Infinity, duration: 2.5 }} className="mb-3 text-7xl print:text-6xl text-center">
+          <p className="mb-2 text-center text-sm font-bold uppercase tracking-[0.3em] text-white/90 print:text-[0.9rem]">
+            Your profile type
+          </p>
+          <motion.div
+            animate={{ y: [0, -6, 0] }}
+            transition={{ repeat: Infinity, duration: 2.5 }}
+            className="mb-3 text-center text-7xl print:text-7xl"
+          >
             {arch.emoji}
           </motion.div>
-          <h1 className="mb-4 text-4xl font-extrabold sm:text-6xl print:mb-3 print:text-5xl text-center">{arch.title}</h1>
+          <h1 className="mb-5 text-center text-4xl font-extrabold sm:text-6xl print:mb-4 print:text-5xl">{arch.title}</h1>
           <div className="flex flex-wrap justify-center gap-3 text-center">
             {arch.top.map((k) => (
-              <span key={k} className="rounded-full bg-white/25 px-5 py-2 text-base font-semibold backdrop-blur text-center">
+              <span
+                key={k}
+                className="rounded-full bg-white/25 px-5 py-2 text-center text-base font-semibold backdrop-blur print:text-[1.1rem]"
+              >
                 {TRAIT_META[k].name} · {scores[k]}
               </span>
             ))}
           </div>
         </motion.div>
 
-        <div className="space-y-4 flex flex-col items-center w-full print:space-y-4">
-          <Reveal className={`${card} print:p-5 w-full text-center flex flex-col items-center`}>
-            <p className="text-lg font-bold text-slate-900 text-center w-full">OCEAN profile</p>
-            <p className="mb-2 text-base text-slate-500 text-center w-full">Your Big Five footprint</p>
-            <div className="h-64 w-full print:h-56 flex justify-center items-center">
+        <Reveal className={`${card} flex flex-col items-center text-center print:grow`}>
+          <p className="w-full text-center text-lg font-bold text-slate-900 print:text-[1.4rem]">OCEAN profile</p>
+          <p className="mb-2 w-full text-center text-base text-slate-500 print:text-[1.05rem]">Your Big Five footprint</p>
+          <div className="relative h-72 w-full print:h-auto print:min-h-0 print:flex-1">
+            <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
-                <RadarChart data={chartData} outerRadius="72%" margin={{ top: 10, right: 25, bottom: 10, left: 25 }}>
+                <RadarChart data={chartData} outerRadius="70%" margin={{ top: 14, right: 40, bottom: 14, left: 40 }}>
                   <PolarGrid stroke="#cbd5e1" />
-                  <PolarAngleAxis dataKey="trait" tick={{ fill: "#334155", fontSize: 13, fontWeight: 700 }} />
-                  <Radar dataKey="value" stroke="#7c3aed" strokeWidth={3} fill="#8b5cf6" fillOpacity={0.4} isAnimationActive={false} />
+                  <PolarAngleAxis dataKey="trait" tick={{ fill: "#334155", fontSize: 15, fontWeight: 700 }} />
+                  <Radar
+                    dataKey="value"
+                    stroke="#7c3aed"
+                    strokeWidth={3}
+                    fill="#8b5cf6"
+                    fillOpacity={0.4}
+                    isAnimationActive={false}
+                  />
                 </RadarChart>
               </ResponsiveContainer>
             </div>
-          </Reveal>
-
-          <div className="w-full">
-            {workspaceCard}
           </div>
-        </div>
-      </div>
+        </Reveal>
+
+        {workspaceCard}
+      </Page>
 
       {/* ================= SEITE 2: Executive Summary & Trait Breakdown ================= */}
-      <section className="print:break-before-page print:break-after-page">
-      <SectionHeader n={1} icon="🧠" title="Executive Summary & Trait Breakdown" sub="Your core psychological profile and Big Five footprint" tone="indigo" />
-      <div className="grid gap-6 md:grid-cols-1 print:grid-cols-1 print:gap-5">
+      <Page>
+        <SectionHeader
+          n={1}
+          icon="🧠"
+          title="Executive Summary & Trait Breakdown"
+          sub="Your core psychological profile and Big Five footprint"
+          tone="indigo"
+        />
         {unlocked === false && <Paywall onComplete={verify} verifying={verifying} error={payError} />}
         {unlocked === true && (
           <>
-            <Reveal className={`${card} print:break-inside-avoid print:p-6`}>
+            <Reveal className={card}>
               {report?.executiveSummary ? (
                 <>
-                  <p className="text-lg leading-relaxed text-slate-800 print:text-base print:leading-relaxed">{report.executiveSummary}</p>
+                  <p className="text-lg leading-relaxed text-slate-800 print:text-[0.92rem] print:leading-[1.6]">
+                    {report.executiveSummary}
+                  </p>
                   {!!report.traitInteractions?.length && (
-                    <div className="mt-5 border-t border-slate-100 pt-4 print:mt-4 print:pt-3">
-                      <p className="mb-3 text-sm font-bold uppercase tracking-wider text-slate-500">Dominant trait interactions</p>
-                      <ol className="space-y-3 text-base text-slate-700 print:space-y-2 print:text-sm">
+                    <div className="mt-5 border-t border-slate-100 pt-4 print:mt-3 print:pt-3">
+                      <p className="mb-3 text-sm font-bold uppercase tracking-wider text-slate-500 print:mb-2 print:text-[0.8rem]">
+                        Dominant trait interactions
+                      </p>
+                      <ol className="space-y-3 text-base text-slate-700 print:space-y-2 print:text-[0.85rem] print:leading-snug">
                         {report.traitInteractions.map((t, i) => (
-                          <li key={i} className="flex gap-3"><span className="font-extrabold text-indigo-600 text-lg">{i + 1}.</span><span>{t}</span></li>
+                          <li key={i} className="flex gap-3">
+                            <span className="text-lg font-extrabold text-indigo-600 print:text-[1rem]">{i + 1}.</span>
+                            <span>{t}</span>
+                          </li>
                         ))}
                       </ol>
                     </div>
@@ -384,16 +534,18 @@ export default function Results({
               )}
             </Reveal>
 
-            <Reveal className={`${card} print:break-inside-avoid print:p-6`}>
-              <p className="mb-4 text-sm font-bold uppercase tracking-wider text-slate-500">Trait breakdown</p>
-              <div className="grid gap-x-10 gap-y-6 md:grid-cols-2 print:grid-cols-1 print:gap-y-4">
+            <Reveal className={`${card} print:fill`}>
+              <p className="mb-4 text-sm font-bold uppercase tracking-wider text-slate-500 print:mb-2 print:text-[0.8rem]">
+                Trait breakdown
+              </p>
+              <div className="grid-2 spread !gap-x-10 !gap-y-6 print:!gap-x-8 print:!gap-y-3">
                 {TRAIT_ORDER.map((k) => {
                   const v = scores[k];
                   return (
-                    <div key={k} className="print:break-inside-avoid">
-                      <div className="mb-2 flex items-baseline justify-between text-base">
-                        <span className="font-bold text-slate-900 text-lg">{TRAIT_META[k].name}</span>
-                        <span className="font-extrabold text-xl" style={{ color: TRAIT_META[k].color }}>
+                    <div key={k} className="break-inside-avoid">
+                      <div className="mb-2 flex items-baseline justify-between">
+                        <span className="text-lg font-bold text-slate-900 print:text-[1.05rem]">{TRAIT_META[k].name}</span>
+                        <span className="text-xl font-extrabold print:text-[1.2rem]" style={{ color: TRAIT_META[k].color }}>
                           <CountUp to={v} />%
                         </span>
                       </div>
@@ -407,7 +559,9 @@ export default function Results({
                           transition={{ duration: 1 }}
                         />
                       </div>
-                      <p className="text-sm leading-relaxed text-slate-500">{INSIGHTS[k][band(v)]}</p>
+                      <p className="text-sm leading-relaxed text-slate-500 print:text-[0.8rem] print:leading-snug">
+                        {INSIGHTS[k][band(v)]}
+                      </p>
                     </div>
                   );
                 })}
@@ -415,12 +569,11 @@ export default function Results({
             </Reveal>
           </>
         )}
-      </div>
-      </section>
+      </Page>
 
       {unlocked === true && status === "loading" && <Loading />}
       {unlocked === true && status === "error" && (
-        <div className="mt-10 rounded-3xl border border-amber-200 bg-amber-50 p-6 text-base text-amber-900">
+        <div className="mt-10 rounded-3xl border border-amber-200 bg-amber-50 p-6 text-base text-amber-900 print:hidden">
           The personal AI report is not available right now ({errMsg}). Your scores above are still complete.
         </div>
       )}
@@ -428,110 +581,179 @@ export default function Results({
       {unlocked === true && report && (
         <>
           {/* ================= SEITE 3: Mind Mechanics Under Stress ================= */}
-          <section className="print:break-before-page print:break-after-page">
-          <SectionHeader n={2} icon="🔥" title="Mind Mechanics Under Stress" sub="How your brain behaves under pressure" tone="rose" />
-          <Reveal className={`${card} print:break-inside-avoid print:p-6`}>
-            <p className="mb-6 text-lg leading-relaxed text-slate-800 print:text-base print:leading-relaxed">{report.mindMechanics}</p>
-            <div className="grid gap-6 md:grid-cols-2 print:grid-cols-2">
-              <div className="rounded-3xl border border-rose-200 bg-rose-50 p-6 print:p-5">
-                <p className="mb-3 font-bold text-rose-700 text-lg">🔥 Burnout risk factors</p>
-                <Bullets items={report.burnoutRisks ?? []} dot="bg-rose-400" />
+          <Page>
+            <SectionHeader n={2} icon="🔥" title="Mind Mechanics Under Stress" sub="How your brain behaves under pressure" tone="rose" />
+            <Reveal className={`${card} print:fill`}>
+              <p className="mb-6 text-lg leading-relaxed text-slate-800 print:mb-5 print:text-[1.02rem] print:leading-relaxed">
+                {report.mindMechanics}
+              </p>
+              <div className="grid-2 spread print:!items-stretch">
+                <div className="flex flex-col rounded-3xl border border-rose-200 bg-rose-50 p-6 print:p-5">
+                  <p className="mb-3 text-lg font-bold text-rose-700 print:text-[1.15rem]">🔥 Burnout risk factors</p>
+                  <Bullets items={report.burnoutRisks ?? []} dot="bg-rose-400" />
+                </div>
+                <div className="flex flex-col rounded-3xl border border-sky-200 bg-sky-50 p-6 print:p-5">
+                  <p className="mb-3 text-lg font-bold text-sky-700 print:text-[1.15rem]">🌊 Emotional reset triggers</p>
+                  <Bullets items={report.resetTriggers ?? []} dot="bg-sky-400" />
+                </div>
               </div>
-              <div className="rounded-3xl border border-sky-200 bg-sky-50 p-6 print:p-5">
-                <p className="mb-3 font-bold text-sky-700 text-lg">🌊 Emotional reset triggers</p>
-                <Bullets items={report.resetTriggers ?? []} dot="bg-sky-400" />
-              </div>
-            </div>
-          </Reveal>
-          </section>
+            </Reveal>
+          </Page>
 
-          {/* ================= SEITE 4: Thrive & Friction Zones ================= */}
-          <section className="print:break-before-page print:break-after-page">
-          <SectionHeader n={3} icon="🚀" title="Thrive & Friction Zones" sub="Where you excel and your behavioral challenge points" tone="emerald" />
-          <div className="space-y-6 print:space-y-5">
-            <div className="grid gap-6 md:grid-cols-3 print:grid-cols-3 print:gap-4">
+          {/* ================= SEITE 4: Thrive Zones ================= */}
+          <Page className="pdf-join">
+            <SectionHeader
+              n={3}
+              icon="🚀"
+              title="Thrive & Friction Zones"
+              sub="Where you excel and your behavioral challenge points"
+              tone="emerald"
+            />
+            <div className="grid-3 stack">
               {(report.thriveZones ?? []).map((z, i) => (
-                <Reveal key={i} className={`${card} print:mb-0 print:p-5`}>
-                  <p className="mb-2.5 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-600">
+                <Reveal key={i} className={`${card} print:px-6 print:py-5`}>
+                  <p className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-600 print:text-[0.8rem]">
                     <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Thrive zone #{i + 1}
                   </p>
-                  <p className="mb-3.5 text-base font-extrabold leading-snug text-slate-900 print:text-sm">{z.title}</p>
-                  <p className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400">Ideal role</p>
-                  <p className="mb-3.5 text-sm text-slate-700 print:text-xs">{z.idealRole}</p>
-                  <p className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400">Deep work conditions</p>
-                  <p className="text-sm text-slate-700 print:text-xs">{z.deepWork}</p>
+                  <p className="mb-3 text-base font-extrabold leading-snug text-slate-900 print:text-[1.3rem]">{z.title}</p>
+                  <div className="in-2">
+                    <div>
+                      <p className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400 print:text-[0.75rem]">Ideal role</p>
+                      <p className="text-sm text-slate-700 print:text-[0.95rem] print:leading-relaxed">{z.idealRole}</p>
+                    </div>
+                    <div>
+                      <p className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400 print:text-[0.75rem]">
+                        Deep work conditions
+                      </p>
+                      <p className="text-sm text-slate-700 print:text-[0.95rem] print:leading-relaxed">{z.deepWork}</p>
+                    </div>
+                  </div>
                 </Reveal>
               ))}
             </div>
+          </Page>
 
-            <div className="grid gap-6 md:grid-cols-3 print:grid-cols-3 print:gap-4">
+          {/* ================= SEITE 5: Friction Points ================= */}
+          <Page>
+            {/* Auf dem Bildschirm gehört das zu Section 03 oben, im PDF bekommt die Seite ihre eigene Kopfzeile */}
+            <SectionHeader
+              n={3}
+              icon="⚡"
+              title="Friction Points"
+              sub="Where your profile meets resistance, and what helps"
+              tone="amber"
+              className="hidden print:flex"
+            />
+            <div className="grid-3 stack">
               {(report.frictionPoints ?? []).map((f, i) => (
-                <Reveal key={i} className={`${card} print:mb-0 print:p-5`}>
-                  <p className="mb-2.5 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-600">
+                <Reveal key={i} className={`${card} print:px-6 print:py-5`}>
+                  <p className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-600 print:text-[0.8rem]">
                     <span className="h-2.5 w-2.5 rounded-full bg-amber-500" /> Friction #{i + 1}
                   </p>
-                  <p className="mb-3.5 text-base font-extrabold leading-snug text-slate-900 print:text-sm">{f.issue}</p>
-                  <p className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400">Communication blind spot</p>
-                  <p className="mb-3.5 text-sm text-slate-700 print:text-xs">{f.blindSpot}</p>
-                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 print:p-3.5">
-                    <p className="mb-2 text-xs font-bold uppercase tracking-wider text-amber-700">Mitigation strategies</p>
-                    <ul className="space-y-2 text-sm text-slate-700 print:text-xs">
-                      {(f.strategies ?? []).map((s, j) => (
-                        <li key={j} className="flex gap-2"><span className="font-bold text-amber-600 text-base">✓</span><span>{s}</span></li>
-                      ))}
-                    </ul>
+                  <p className="mb-3 text-base font-extrabold leading-snug text-slate-900 print:text-[1.3rem]">{f.issue}</p>
+                  <div className="in-fr">
+                    <div>
+                      <p className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400 print:text-[0.75rem]">
+                        Communication blind spot
+                      </p>
+                      <p className="mb-3 text-sm text-slate-700 print:mb-0 print:text-[0.9rem] print:leading-relaxed">{f.blindSpot}</p>
+                    </div>
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 print:p-3.5">
+                      <p className="mb-2 text-xs font-bold uppercase tracking-wider text-amber-700 print:text-[0.75rem]">
+                        Mitigation strategies
+                      </p>
+                      <ul className="space-y-2 text-sm text-slate-700 print:space-y-1.5 print:text-[0.85rem] print:leading-snug">
+                        {(f.strategies ?? []).map((s, j) => (
+                          <li key={j} className="flex gap-2">
+                            <span className="text-base font-bold text-amber-600">✓</span>
+                            <span>{s}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
                 </Reveal>
               ))}
             </div>
-          </div>
-          </section>
+          </Page>
 
-          {/* ================= SEITE 5: Geographical & Cultural Alignment ================= */}
-          <section className="print:break-before-page print:break-after-page">
-          <SectionHeader n={4} icon="🌍" title="Geographical & Cultural Alignment" sub="Three cultures that may match your values, pacing and norms" tone="fuchsia" />
-          <div className="grid gap-6 md:grid-cols-3 print:grid-cols-3 print:gap-4">
-            {(report.countries ?? []).map((c, i) => (
-              <Reveal key={i} className={`${card} print:mb-0 print:p-6`}>
-                <div className="mb-3 flex items-center justify-between">
-                  <p className="text-xl font-extrabold text-slate-900 print:text-lg">{c.name}</p>
-                  <span className="rounded-full border border-fuchsia-200 bg-fuchsia-50 px-3 py-1 text-sm font-bold text-fuchsia-700">{c.fit}% fit</span>
-                </div>
-                <div className="mb-4 h-3 overflow-hidden rounded-full bg-fuchsia-100">
-                  <motion.div
-                    className="h-full rounded-full bg-gradient-to-r from-fuchsia-500 to-violet-500"
-                    initial={{ width: 0 }}
-                    whileInView={{ width: `${c.fit}%` }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 1 }}
-                  />
-                </div>
-                {([["Values alignment", c.values], ["Pacing match", c.pacing], ["Social norms", c.norms]] as const).map(([label, text]) => (
-                  <div key={label} className="mb-3.5 last:mb-0">
-                    <p className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400">{label}</p>
-                    <p className="text-base text-slate-700 print:text-sm leading-relaxed">{text}</p>
+          {/* ================= SEITE 6: Geographical & Cultural Alignment ================= */}
+          <Page>
+            <SectionHeader
+              n={4}
+              icon="🌍"
+              title="Geographical & Cultural Alignment"
+              sub="Three cultures that may match your values, pacing and norms"
+              tone="fuchsia"
+            />
+            <div className="grid-3 stack">
+              {(report.countries ?? []).map((c, i) => (
+                <Reveal key={i} className={`${card} print:px-6 print:py-5`}>
+                  <div className="mb-3 flex items-center justify-between print:mb-2">
+                    <p className="text-xl font-extrabold text-slate-900 print:text-[1.5rem]">{c.name}</p>
+                    <span className="rounded-full border border-fuchsia-200 bg-fuchsia-50 px-3 py-1 text-sm font-bold text-fuchsia-700 print:text-[0.95rem]">
+                      {c.fit}% fit
+                    </span>
                   </div>
-                ))}
-              </Reveal>
-            ))}
-          </div>
-          </section>
+                  <div className="mb-4 h-3 overflow-hidden rounded-full bg-fuchsia-100 print:mb-3">
+                    <motion.div
+                      className="h-full rounded-full bg-gradient-to-r from-fuchsia-500 to-violet-500"
+                      initial={{ width: 0 }}
+                      whileInView={{ width: `${c.fit}%` }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 1 }}
+                    />
+                  </div>
+                  <div className="in-3">
+                    {([["Values alignment", c.values], ["Pacing match", c.pacing], ["Social norms", c.norms]] as const).map(
+                      ([label, text]) => (
+                        <div key={label} className="mb-3.5 last:mb-0 print:mb-0">
+                          <p className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400 print:text-[0.75rem]">
+                            {label}
+                          </p>
+                          <p className="text-base leading-relaxed text-slate-700 print:text-[0.82rem] print:leading-snug">{text}</p>
+                        </div>
+                      ),
+                    )}
+                  </div>
+                </Reveal>
+              ))}
+            </div>
+          </Page>
 
-          {/* ================= SEITE 6: 7-Day Action Blueprint ================= */}
-          <section className="print:break-before-page">
-          <SectionHeader n={5} icon="📅" title="7-Day Action Blueprint" sub="Micro-habits tuned to your profile: one week, tiny moves" tone="teal" />
-          <SevenDays plan={report.sevenDayPlan ?? []} />
-          </section>
+          {/* ================= SEITE 7: 7-Day Action Blueprint ================= */}
+          <Page>
+            <SectionHeader
+              n={5}
+              icon="📅"
+              title="7-Day Action Blueprint"
+              sub="Micro-habits tuned to your profile: one week, tiny moves"
+              tone="teal"
+            />
+            <SevenDays plan={report.sevenDayPlan ?? []} />
+          </Page>
         </>
       )}
 
-      <p className="mt-12 text-center text-sm text-slate-400 print:mt-8">{DISCLAIMER}</p>
+      {/* Im PDF erscheint der Disclaimer als Fußzeile auf jeder Seite */}
+      <p className="print-fixed-footer mt-12 text-center text-sm text-slate-400 print:mt-0 print:text-[0.62rem] print:leading-tight">
+        {DISCLAIMER}
+      </p>
 
       <div className="mt-8 flex flex-col gap-4 sm:flex-row print:hidden">
-        <button type="button" onClick={printPdf} disabled={unlocked !== true} className="flex-1 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-500 py-4 text-lg font-bold text-white shadow-lg shadow-violet-300 disabled:opacity-40 disabled:shadow-none">
+        <button
+          type="button"
+          onClick={printPdf}
+          disabled={unlocked !== true}
+          className="flex-1 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-500 py-4 text-lg font-bold text-white shadow-lg shadow-violet-300 disabled:opacity-40 disabled:shadow-none"
+        >
           Download as PDF
         </button>
-        <button type="button" onClick={onRetake} className="flex-1 rounded-2xl border border-slate-200 bg-white py-4 text-lg font-semibold text-slate-600 hover:bg-slate-50">
+        <button
+          type="button"
+          onClick={onRetake}
+          className="flex-1 rounded-2xl border border-slate-200 bg-white py-4 text-lg font-semibold text-slate-600 hover:bg-slate-50"
+        >
           Retake
         </button>
       </div>
