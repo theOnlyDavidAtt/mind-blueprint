@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 
@@ -8,6 +8,8 @@ export const metadata: Metadata = {
   title: "Mind & Potential Architect",
   description: "Big Five personality and workspace blueprint with a personal AI report.",
 };
+
+export const viewport: Viewport = { colorScheme: "light", themeColor: "#f6f5fb" };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

@@ -7,6 +7,7 @@ import { PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer } fro
 import { DISCLAIMER, SLIDERS, TRAIT_META, TRAIT_ORDER, archetype, band, type Scores } from "@/lib/scoring";
 import { INSIGHTS } from "@/lib/insights";
 import Paywall, { LockedTeaser } from "@/components/Paywall";
+import { encodeState } from "@/lib/persist";
 
 type Report = {
   executiveSummary?: string;
@@ -445,7 +446,7 @@ export default function Results({
         <motion.div
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="flex break-inside-avoid flex-col items-center justify-center rounded-[2.5rem] bg-gradient-to-br from-violet-600 via-fuchsia-500 to-amber-400 p-10 text-center text-white shadow-2xl shadow-violet-300 sm:p-12 print:rounded-[2rem] print:p-8 print:shadow-none"
+          className="flex break-inside-avoid flex-col items-center justify-center rounded-[2.5rem] bg-violet-600 bg-gradient-to-br from-violet-600 via-fuchsia-500 to-amber-400 p-10 text-center text-white shadow-2xl shadow-violet-300 sm:p-12 print:rounded-[2rem] print:p-8 print:shadow-none"
         >
           <p className="mb-2 text-center text-sm font-bold uppercase tracking-[0.3em] text-white/90 print:text-[0.9rem]">
             Your profile type
@@ -457,7 +458,7 @@ export default function Results({
           >
             {arch.emoji}
           </motion.div>
-          <h1 className="mb-5 text-center text-4xl font-extrabold sm:text-6xl print:mb-4 print:text-5xl">{arch.title}</h1>
+          <h1 className="mb-5 text-center text-4xl font-extrabold text-white sm:text-6xl print:mb-4 print:text-5xl print:text-white">{arch.title}</h1>
           <div className="flex flex-wrap justify-center gap-3 text-center">
             {arch.top.map((k) => (
               <span
@@ -505,7 +506,7 @@ export default function Results({
           sub="Your core psychological profile and Big Five footprint"
           tone="indigo"
         />
-        {unlocked === false && <Paywall onComplete={verify} verifying={verifying} error={payError} />}
+        {unlocked === false && <Paywall onComplete={verify} verifying={verifying} error={payError} returnState={encodeState({ scores, sliders })} />}
         {unlocked === true && (
           <>
             <Reveal className={card}>

@@ -26,10 +26,13 @@ export default function Paywall({
   onComplete,
   verifying,
   error,
+  returnState,
 }: {
   onComplete: (receiptId: string) => void;
   verifying: boolean;
   error: string;
+  /** encoded quiz result, appended to the checkout return link so nothing is lost on redirect */
+  returnState?: string;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -82,7 +85,7 @@ export default function Paywall({
               plan={PLAN_ID}
               returnUrl={
                 typeof window !== "undefined"
-                  ? `${window.location.origin}/`
+                  ? `${window.location.origin}/${returnState ? `?mpa=${returnState}` : ""}`
                   : undefined
               }
               fallback={

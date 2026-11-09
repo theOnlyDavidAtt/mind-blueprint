@@ -6,6 +6,7 @@ import Quiz from "@/components/Quiz";
 import Sliders from "@/components/Sliders";
 import Results from "@/components/Results";
 import { scoreBig5, type Scores } from "@/lib/scoring";
+import { decodeState } from "@/lib/persist";
 
 type Stage = "intro" | "quiz" | "sliders" | "results";
 
@@ -24,18 +25,57 @@ export default function Home() {
   const [ready, setReady] = useState(false);
 
   // Restore a finished quiz after a reload or a return from checkout.
+  // Order: 1) copy carried in the checkout return link (works even if the browser
+  // opened a fresh tab/context, e.g. incognito or in-app browsers), 2) localStorage.
   useEffect(() => {
+    let restored = false;
     try {
-      const raw = window.localStorage.getItem(STORE);
-      if (raw) {
-        const d = JSON.parse(raw);
-        if (d?.scores && d?.sliders) {
-          setScores(d.scores);
-          setSliders(d.sliders);
-          setStage("results");
-        }
+      const sp = new URLSearchParams(window.location.search);
+      const fromUrl = decodeState(sp.get("mpa"));
+      if (fromUrl) {
+        setScores(fromUrl.scores);
+        setSliders(fromUrl.sliders);
+        setStage("results");
+        restored = true;
+        try {
+          window.localStorage.setItem(STORE, JSON.stringify(fromUrl));
+        } catch { /* ignore */ }
       }
-    } catch { /* storage unavailable or corrupt: start fresh */ }
+      if (sp.has("mpa")) {
+        // keep payment_id & co. for the results screen, drop only our own param
+        sp.delete("mpa");
+        const q = sp.toString();
+        window.history.replaceState(null, "", window.location.pathname + (q ? `?${q}` : ""));
+      }
+    } catch { /* ignore */ }
+
+    if (!restored) {
+      try {
+        const raw = window.localStorage.getItem(STORE);
+        if (raw) {
+          const d = JSON.parse(raw);
+          if (d?.scores && d?.sliders) {
+            setScores(d.scores);
+            setSliders(d.sliders);
+            setStage("results");
+            restored = true;
+          }
+        }
+      } catch { /* storage unavailable or corrupt: start fresh */ }
+    }
+
+    // Paid, but the quiz result is gone (e.g. link without our param): remember the payment,
+    // so the report unlocks as soon as the person has finished the quiz again.
+    if (!restored) {
+      try {
+        const sp = new URLSearchParams(window.location.search);
+        const pid = sp.get("payment_id") ?? sp.get("receipt_id");
+        if (pid) {
+          window.localStorage.setItem("mpa_pending_payment", pid);
+          window.history.replaceState(null, "", window.location.pathname);
+        }
+      } catch { /* ignore */ }
+    }
     setReady(true);
   }, []);
 

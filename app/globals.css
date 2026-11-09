@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  color-scheme: only light; /* verhindert, dass der Handy-Dark-Mode Seite und PDF schwarz einfärbt */
   --background: #f6f5fb;
   --foreground: #0f172a;
 }
@@ -11,7 +12,5 @@ body {
 }
 
 @media print {
-  html { font-size: 84%; }
   * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-  body { background: #fff; }
 }
