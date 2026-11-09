@@ -30,7 +30,7 @@ const TONES = {
 } as const;
 type Tone = keyof typeof TONES;
 
-const card = "break-inside-avoid rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm shadow-slate-200/60 print:p-4";
+const card = "break-inside-avoid rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm shadow-slate-200/60 print:p-5 print:mb-6";
 
 function CountUp({ to }: { to: number }) {
   const [v, setV] = useState(0);
@@ -57,7 +57,7 @@ function Reveal({ children, className = "" }: { children: React.ReactNode; class
 
 function SectionHeader({ n, icon, title, sub, tone }: { n: number; icon: string; title: string; sub: string; tone: Tone }) {
   return (
-    <Reveal className={`mb-4 mt-12 flex break-after-avoid items-center gap-4 print:mt-0 ${n > 1 ? "print:break-before-page" : ""}`}>
+    <Reveal className="mb-4 mt-12 flex break-after-avoid items-center gap-4 print:mt-8 print:mb-4 print:break-after-avoid">
       <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border text-2xl ${TONES[tone].tile}`}>{icon}</div>
       <div>
         <p className={`text-[11px] font-bold uppercase tracking-[0.2em] ${TONES[tone].label}`}>Section {String(n).padStart(2, "0")}</p>
@@ -125,9 +125,9 @@ function SevenDays({ plan }: { plan: { theme: string; tasks: string[] }[] }) {
         </div>
         <p className="mt-2 text-xs text-slate-400 print:hidden">Tick off the micro-habits as you go.</p>
       </Reveal>
-      <div className="grid gap-4 md:grid-cols-2 print:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 print:grid-cols-2 print:gap-4">
         {plan.map((d, di) => (
-          <Reveal key={di} className={card}>
+          <Reveal key={di} className={`${card} print:break-inside-avoid print:mb-0`}>
             <div className="mb-3 flex items-center justify-between">
               <p className="text-xs font-bold uppercase tracking-wider text-teal-700">Day {di + 1} · {days[di] ?? ""}</p>
               <span className="rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-700">{d.theme}</span>
@@ -170,7 +170,7 @@ export default function Results({
   const [report, setReport] = useState<Report | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [errMsg, setErrMsg] = useState("");
-  const [unlocked, setUnlocked] = useState<boolean | null>(null); // null = still checking
+  const [unlocked, setUnlocked] = useState<boolean | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [payError, setPayError] = useState("");
   const started = useRef(false);
@@ -188,7 +188,6 @@ export default function Results({
     },
   };
 
-  // Ask the server to confirm the payment with Whop. The server sets a signed cookie on success.
   const verify = useCallback(async (paymentId: string) => {
     setVerifying(true);
     setPayError("");
@@ -222,7 +221,6 @@ export default function Results({
     setVerifying(false);
   }, []);
 
-  // 1) On load: remove any payment params from the address bar, ask the server whether this browser has paid.
   useEffect(() => {
     confetti({ particleCount: 150, spread: 90, origin: { y: 0.25 } });
     (async () => {
@@ -242,10 +240,8 @@ export default function Results({
         if (pending) verify(pending);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [verify]);
 
-  // 2) Only after payment is confirmed: load the cached report or generate it (the server refuses unpaid requests).
   useEffect(() => {
     if (unlocked !== true || started.current) return;
     started.current = true;
@@ -276,10 +272,10 @@ export default function Results({
         setStatus("error");
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unlocked, scores, sliders]);
 
   const SHORT: Record<string, string> = { O: "Openness", C: "Conscient.", E: "Extraversion", A: "Agreeable.", S: "Stability" };
+  
   const printPdf = async () => {
     const step = window.innerHeight * 0.8;
     for (let y = 0; y <= document.body.scrollHeight; y += step) {
@@ -294,14 +290,14 @@ export default function Results({
   const chartData = TRAIT_ORDER.map((k) => ({ trait: SHORT[k], value: scores[k] }));
 
   const workspaceCard = (
-      <Reveal className={card}>
+      <Reveal className={`${card} print:break-inside-avoid`}>
         <p className="mb-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">Your workspace style</p>
-        <div className="grid gap-5 md:grid-cols-2 print:grid-cols-2">
+        <div className="grid gap-5 md:grid-cols-2 print:grid-cols-2 print:gap-4">
           {SLIDERS.map((s) => {
             const v = sliders[s.id] ?? 50;
             const label = v < 40 ? s.left_label : v > 60 ? s.right_label : "Balanced between both";
             return (
-              <div key={s.id}>
+              <div key={s.id} className="print:break-inside-avoid">
                 <div className="mb-1 flex justify-between text-xs">
                   <span className="font-bold text-slate-700">{s.dimension}</span>
                   <span className="font-medium text-fuchsia-600">{label}</span>
@@ -317,12 +313,12 @@ export default function Results({
   );
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-8">
+    <div className="mx-auto w-full max-w-5xl px-4 py-8 print:w-full print:max-w-none print:px-8 print:py-6">
       {/* Hero */}
       <motion.div
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="break-inside-avoid rounded-[2rem] bg-gradient-to-br from-violet-600 via-fuchsia-500 to-amber-400 p-8 text-center text-white shadow-2xl shadow-violet-300 sm:p-12 print:p-5 print:shadow-none"
+        className="break-inside-avoid rounded-[2rem] bg-gradient-to-br from-violet-600 via-fuchsia-500 to-amber-400 p-8 text-center text-white shadow-2xl shadow-violet-300 sm:p-12 print:p-6 print:mb-6 print:shadow-none print:break-inside-avoid"
       >
         <p className="mb-2 text-xs font-bold uppercase tracking-[0.3em] text-white/80">Your profile type</p>
         <motion.div animate={{ y: [0, -8, 0] }} transition={{ repeat: Infinity, duration: 2.5 }} className="mb-1 text-6xl print:text-4xl">
@@ -339,9 +335,10 @@ export default function Results({
       </motion.div>
 
       {/* 01 Executive summary */}
+      <section className="print:break-inside-avoid">
       <SectionHeader n={1} icon="🧠" title="Executive Summary" sub="Your core psychological profile at a glance" tone="indigo" />
-      <div className="grid gap-5 md:grid-cols-[360px_1fr] print:grid-cols-[300px_1fr]">
-        <Reveal className={`${card} print:order-1`}>
+      <div className="grid gap-5 md:grid-cols-[360px_1fr] print:grid-cols-1 print:gap-4">
+        <Reveal className={`${card} print:break-inside-avoid`}>
           <p className="font-bold text-slate-900">OCEAN profile</p>
           <p className="mb-2 text-sm text-slate-500">Your Big Five footprint</p>
           <div className="h-64 w-full print:h-52">
@@ -349,7 +346,7 @@ export default function Results({
               <RadarChart data={chartData} outerRadius="55%" margin={{ top: 24, right: 56, bottom: 28, left: 56 }}>
                 <PolarGrid stroke="#e2e8f0" />
                 <PolarAngleAxis dataKey="trait" tick={{ fill: "#475569", fontSize: 11, fontWeight: 600 }} />
-                <Radar dataKey="value" stroke="#7c3aed" strokeWidth={2} fill="#8b5cf6" fillOpacity={0.35} isAnimationActive />
+                <Radar dataKey="value" stroke="#7c3aed" strokeWidth={2} fill="#8b5cf6" fillOpacity={0.35} isAnimationActive={false} />
               </RadarChart>
             </ResponsiveContainer>
           </div>
@@ -357,14 +354,14 @@ export default function Results({
         {unlocked === false && <Paywall onComplete={verify} verifying={verifying} error={payError} />}
         {unlocked === true && (
           <>
-        <Reveal className={`${card} print:order-3 print:col-span-2 print:break-inside-auto`}>
+        <Reveal className={`${card} print:break-inside-avoid`}>
           {report?.executiveSummary ? (
             <>
-              <p className="text-base leading-relaxed text-slate-800 print:text-[13px] print:leading-snug">{report.executiveSummary}</p>
+              <p className="text-base leading-relaxed text-slate-800 print:text-sm print:leading-relaxed">{report.executiveSummary}</p>
               {!!report.traitInteractions?.length && (
-                <div className="mt-5 border-t border-slate-100 pt-4 print:mt-3 print:pt-3">
+                <div className="mt-5 border-t border-slate-100 pt-4 print:mt-4 print:pt-3">
                   <p className="mb-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Dominant trait interactions</p>
-                  <ol className="space-y-3 text-sm text-slate-700 print:space-y-1.5 print:text-xs">
+                  <ol className="space-y-3 text-sm text-slate-700 print:space-y-2 print:text-xs">
                     {report.traitInteractions.map((t, i) => (
                       <li key={i} className="flex gap-3"><span className="font-extrabold text-indigo-600">{i + 1}.</span><span>{t}</span></li>
                     ))}
@@ -379,13 +376,13 @@ export default function Results({
             </p>
           )}
         </Reveal>
-      <Reveal className={`${card} md:col-span-2 print:order-2 print:col-span-1`}>
+      <Reveal className={`${card} md:col-span-2 print:col-span-1 print:break-inside-avoid`}>
         <p className="mb-5 text-[11px] font-bold uppercase tracking-wider text-slate-500">Trait breakdown</p>
-        <div className="grid gap-x-10 gap-y-6 md:grid-cols-2 print:grid-cols-1 print:gap-y-3">
+        <div className="grid gap-x-10 gap-y-6 md:grid-cols-2 print:grid-cols-1 print:gap-y-4">
           {TRAIT_ORDER.map((k) => {
             const v = scores[k];
             return (
-              <div key={k} className="break-inside-avoid">
+              <div key={k} className="print:break-inside-avoid">
                 <div className="mb-1.5 flex items-baseline justify-between">
                   <span className="font-bold text-slate-900">{TRAIT_META[k].name}</span>
                   <span className="text-lg font-extrabold" style={{ color: TRAIT_META[k].color }}>
@@ -412,6 +409,7 @@ export default function Results({
           </>
         )}
       </div>
+      </section>
 
       {unlocked === true && !report && <div className="mt-5">{workspaceCard}</div>}
       {unlocked === false && <LockedTeaser />}
@@ -426,53 +424,58 @@ export default function Results({
       {unlocked === true && report && (
         <>
           {/* 02 Stress */}
+          <section className="print:break-inside-avoid">
           <SectionHeader n={2} icon="🔥" title="Mind Mechanics Under Stress" sub="How your brain behaves under pressure" tone="rose" />
-          <Reveal className={`${card} print:break-inside-auto`}>
-            <p className="mb-5 leading-relaxed text-slate-800 print:text-sm">{report.mindMechanics}</p>
-            <div className="grid gap-4 md:grid-cols-2 print:grid-cols-2">
-              <div className="break-inside-avoid rounded-2xl border border-rose-200 bg-rose-50 p-5">
+          <Reveal className={`${card} print:break-inside-avoid`}>
+            <p className="mb-5 leading-relaxed text-slate-800 print:text-sm print:mb-4">{report.mindMechanics}</p>
+            <div className="grid gap-4 md:grid-cols-2 print:grid-cols-2 print:gap-4">
+              <div className="break-inside-avoid rounded-2xl border border-rose-200 bg-rose-50 p-5 print:p-4">
                 <p className="mb-3 font-bold text-rose-700">🔥 Burnout risk factors</p>
                 <Bullets items={report.burnoutRisks ?? []} dot="bg-rose-400" />
               </div>
-              <div className="break-inside-avoid rounded-2xl border border-sky-200 bg-sky-50 p-5">
+              <div className="break-inside-avoid rounded-2xl border border-sky-200 bg-sky-50 p-5 print:p-4">
                 <p className="mb-3 font-bold text-sky-700">🌊 Emotional reset triggers</p>
                 <Bullets items={report.resetTriggers ?? []} dot="bg-sky-400" />
               </div>
             </div>
           </Reveal>
+          </section>
 
           {/* 03 Thrive */}
+          <section className="print:break-inside-avoid">
           <SectionHeader n={3} icon="🚀" title="Workplace & Life Thrive Zones" sub="Where your engine runs at full speed" tone="emerald" />
-          <div className="mb-5">{workspaceCard}</div>
-          <div className="grid gap-4 md:grid-cols-3 print:grid-cols-3">
+          <div className="mb-5 print:mb-4">{workspaceCard}</div>
+          <div className="grid gap-4 md:grid-cols-3 print:grid-cols-3 print:gap-4">
             {(report.thriveZones ?? []).map((z, i) => (
-              <Reveal key={i} className={card}>
+              <Reveal key={i} className={`${card} print:break-inside-avoid print:mb-0`}>
                 <p className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-emerald-600">
                   <span className="h-2 w-2 rounded-full bg-emerald-500" /> Thrive zone #{i + 1}
                 </p>
-                <p className="mb-4 text-lg font-extrabold leading-snug text-slate-900">{z.title}</p>
+                <p className="mb-4 text-lg font-extrabold leading-snug text-slate-900 print:text-base print:mb-2">{z.title}</p>
                 <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">Ideal role</p>
-                <p className="mb-4 text-sm text-slate-700">{z.idealRole}</p>
+                <p className="mb-4 text-sm text-slate-700 print:mb-2">{z.idealRole}</p>
                 <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">Deep work conditions</p>
                 <p className="text-sm text-slate-700">{z.deepWork}</p>
               </Reveal>
             ))}
           </div>
+          </section>
 
           {/* 04 Friction */}
+          <section className="print:break-inside-avoid">
           <SectionHeader n={4} icon="⚠️" title="Friction & Challenge Zones" sub="Behavioural pitfalls, and 3 actionable moves each" tone="amber" />
-          <div className="grid gap-4 md:grid-cols-3 print:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-3 print:grid-cols-3 print:gap-4">
             {(report.frictionPoints ?? []).map((f, i) => (
-              <Reveal key={i} className={card}>
+              <Reveal key={i} className={`${card} print:break-inside-avoid print:mb-0`}>
                 <p className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-amber-600">
                   <span className="h-2 w-2 rounded-full bg-amber-500" /> Friction #{i + 1}
                 </p>
-                <p className="mb-4 font-extrabold leading-snug text-slate-900">{f.issue}</p>
+                <p className="mb-4 font-extrabold leading-snug text-slate-900 print:mb-2">{f.issue}</p>
                 <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">Communication blind spot</p>
-                <p className="mb-4 text-sm text-slate-700">{f.blindSpot}</p>
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p className="mb-4 text-sm text-slate-700 print:mb-3">{f.blindSpot}</p>
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 print:p-3">
                   <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-amber-700">Mitigation strategies</p>
-                  <ul className="space-y-2 text-sm text-slate-700">
+                  <ul className="space-y-2 text-sm text-slate-700 print:space-y-1.5 print:text-xs">
                     {(f.strategies ?? []).map((s, j) => (
                       <li key={j} className="flex gap-2"><span className="font-bold text-amber-600">✓</span><span>{s}</span></li>
                     ))}
@@ -481,17 +484,19 @@ export default function Results({
               </Reveal>
             ))}
           </div>
+          </section>
 
           {/* 05 Countries */}
+          <section className="print:break-inside-avoid">
           <SectionHeader n={5} icon="🌍" title="Geographical & Cultural Alignment" sub="Three cultures that may match your values, pacing and norms (loose suggestions)" tone="fuchsia" />
-          <div className="grid gap-4 md:grid-cols-3 print:grid-cols-1">
+          <div className="grid gap-4 md:grid-cols-3 print:grid-cols-3 print:gap-4">
             {(report.countries ?? []).map((c, i) => (
-              <Reveal key={i} className={card}>
+              <Reveal key={i} className={`${card} print:break-inside-avoid print:mb-0`}>
                 <div className="mb-2 flex items-center justify-between">
-                  <p className="text-xl font-extrabold text-slate-900">{c.name}</p>
+                  <p className="text-xl font-extrabold text-slate-900 print:text-lg">{c.name}</p>
                   <span className="rounded-full border border-fuchsia-200 bg-fuchsia-50 px-3 py-1 text-xs font-bold text-fuchsia-700">{c.fit}% fit</span>
                 </div>
-                <div className="mb-4 h-2 overflow-hidden rounded-full bg-fuchsia-100">
+                <div className="mb-4 h-2 overflow-hidden rounded-full bg-fuchsia-100 print:mb-3">
                   <motion.div
                     className="h-full rounded-full bg-gradient-to-r from-fuchsia-500 to-violet-500"
                     initial={{ width: 0 }}
@@ -501,22 +506,25 @@ export default function Results({
                   />
                 </div>
                 {([["Values alignment", c.values], ["Pacing match", c.pacing], ["Social norms", c.norms]] as const).map(([label, text]) => (
-                  <div key={label} className="mb-3 last:mb-0">
+                  <div key={label} className="mb-3 last:mb-0 print:mb-2">
                     <p className="mb-0.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
-                    <p className="text-sm text-slate-700">{text}</p>
+                    <p className="text-sm text-slate-700 print:text-xs">{text}</p>
                   </div>
                 ))}
               </Reveal>
             ))}
           </div>
+          </section>
 
           {/* 06 Seven days */}
+          <section className="print:break-inside-avoid">
           <SectionHeader n={6} icon="📅" title="7-Day Action Blueprint" sub="Micro-habits tuned to your profile: one week, tiny moves" tone="teal" />
           <SevenDays plan={report.sevenDayPlan ?? []} />
+          </section>
         </>
       )}
 
-      <p className="mt-12 text-center text-xs text-slate-400">{DISCLAIMER}</p>
+      <p className="mt-12 text-center text-xs text-slate-400 print:mt-8">{DISCLAIMER}</p>
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row print:hidden">
         <button type="button" onClick={printPdf} disabled={unlocked !== true} className="flex-1 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-500 py-3.5 font-bold text-white shadow-lg shadow-violet-300 disabled:opacity-40 disabled:shadow-none">
