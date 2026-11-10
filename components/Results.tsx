@@ -55,13 +55,11 @@ const PRINT_FONT_SCALE = 1;
  * damit sich Breakpoints und Print-Regeln nie gegenseitig überschreiben.
  */
 /**
- * iOS Safari rechnet "vw" beim Drucken mit der Handy-Bildschirmbreite statt der Papierbreite
- * -> Schrift im PDF viel zu klein. Media-Queries sehen dagegen die echte Seitenbreite.
- * Deshalb nur auf iOS: Schriftgröße in 20px-Stufen aus der echten Seitenbreite ableiten.
+ * iPhone/iPad: Safari druckt die Schrift ca. 30 % kleiner als am PC. Nur dort zusätzlich vergrößern.
+ *  - Seiten laufen auf dem iPhone über -> 1.15
+ *  - Schrift noch zu klein             -> 1.35
  */
-const IOS_PRINT_CSS = `@supports (-webkit-touch-callout: none){${Array.from({ length: 60 }, (_, i) => 300 + i * 20)
-  .map((w) => `@media print and (min-width:${w}px){html{font-size:${(((w + 10) / 49.625) * PRINT_FONT_SCALE).toFixed(2)}px!important}}`)
-  .join("")}}`;
+const IOS_PRINT_SCALE = 1.25;
 
 const LAYOUT_CSS = `
 .pdf-page{display:flex;flex-direction:column;gap:1.5rem}
@@ -86,6 +84,7 @@ const LAYOUT_CSS = `
 @media print{
   /* 794px = A4-Breite bei 96dpi; 16px Basis -> 100vw/49.625 */
   html{font-size:16px;font-size:calc(100vw / 49.625 * ${PRINT_FONT_SCALE})}
+  html.ios-print{font-size:calc(100vw / 49.625 * ${PRINT_FONT_SCALE * IOS_PRINT_SCALE})!important}
   html,body{width:100%;margin:0;background:#f5f3ff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   canvas{display:none!important}
   .pdf-page{
@@ -395,6 +394,11 @@ export default function Results({
   }, []);
 
   useEffect(() => {
+    // iPhone/iPad (auch iPadOS, das sich als Mac ausgibt) -> größere Druckschrift, siehe IOS_PRINT_SCALE
+    const ua = navigator.userAgent;
+    if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) {
+      document.documentElement.classList.add("ios-print");
+    }
     confetti({ particleCount: 150, spread: 90, origin: { y: 0.25 } });
     // The checkout return link was already read (and removed) by app/page.tsx;
     // a payment still waiting for confirmation is in localStorage.
@@ -513,7 +517,7 @@ export default function Results({
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8 print:m-0 print:w-full print:max-w-none print:overflow-visible print:p-0">
-      <style>{LAYOUT_CSS + IOS_PRINT_CSS}</style>
+      <style>{LAYOUT_CSS}</style>
 
       {/* ================= SEITE 1: Deckblatt ================= */}
       <Page>
