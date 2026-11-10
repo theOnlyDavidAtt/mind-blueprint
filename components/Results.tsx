@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { animate, motion } from "framer-motion";
 import confetti from "canvas-confetti";
-import { PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer } from "recharts";
 import { DISCLAIMER, SLIDERS, TRAIT_META, TRAIT_ORDER, archetype, band, type Scores } from "@/lib/scoring";
 import { INSIGHTS } from "@/lib/insights";
 import Paywall, { LockedTeaser } from "@/components/Paywall";
@@ -69,7 +68,12 @@ const LAYOUT_CSS = `
   .grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
 @page{size:A4 portrait;margin:0}
-.recharts-polar-angle-axis text{font-size:0.95rem!important}
+/* Verläufe in normalem sRGB/Hex: Tailwind v4 rechnet in oklab, das malt der iOS-PDF-Export schwarz */
+.grad-cover{background-color:#7c3aed;background-image:linear-gradient(135deg,#7c3aed 0%,#d946ef 55%,#fbbf24 100%)}
+.grad-track{background-color:#e9d5ff;background-image:linear-gradient(90deg,#ddd6fe,#f5d0fe)}
+.grad-fit{background-color:#c026d3;background-image:linear-gradient(90deg,#d946ef,#8b5cf6)}
+.grad-teal{background-color:#14b8a6;background-image:linear-gradient(90deg,#2dd4bf,#10b981)}
+.radar-box svg{display:block;width:100%;height:100%}
 @media print{
   /* 794px = A4-Breite bei 96dpi; 16px Basis -> 100vw/49.625 */
   html{font-size:16px;font-size:calc(100vw / 49.625 * ${PRINT_FONT_SCALE})}
@@ -91,15 +95,15 @@ const LAYOUT_CSS = `
   .in-3{grid-template-columns:repeat(3,minmax(0,1fr));gap:1.2rem}
   .in-fr{grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:1.3rem}
   .grow{flex:1 1 0;min-height:0}
+  .radar-box{min-height:20rem}
   .fill{flex:1 1 0;min-height:0;display:flex;flex-direction:column}
   .spread{flex:1 1 auto;align-content:space-evenly}
   .week{flex:1 1 0;min-height:0;grid-auto-rows:auto;align-content:space-between;gap:0.8rem}
   .week>*{margin:0!important}
   .week>*:last-child:nth-child(odd){grid-column:span 2}
   .print-fixed-footer{position:fixed;left:0;right:0;bottom:0.7rem;padding:0 5.7%;text-align:center}
-  /* Radar-Diagramm: wurde in Bildschirmbreite gemessen (Handy = sehr schmal) -> im PDF auf die Box skalieren */
-  .radar-box .recharts-responsive-container,.radar-box .recharts-wrapper{width:100%!important;height:100%!important}
-  .radar-box svg.recharts-surface{width:100%!important;height:100%!important}
+  /* Seitenhintergrund ohne Tailwind-Verlauf (sonst schwarzer Streifen unten auf iOS) */
+  main{background:#f5f3ff!important}
   /* Reveal-Animationen dürfen im PDF nie "unsichtbar" hängen bleiben */
   div[style*="opacity"]{opacity:1!important;transform:none!important}
 }
@@ -125,6 +129,58 @@ function Reveal({ children, className = "" }: { children: React.ReactNode; class
     >
       {children}
     </motion.div>
+  );
+}
+
+/**
+ * Radar-Diagramm als reines SVG (kein Recharts): keine Größenmessung per JavaScript,
+ * daher erscheint es beim Drucken/PDF auf jedem Gerät. Skaliert über die viewBox.
+ */
+function RadarSvg({ data }: { data: { trait: string; value: number }[] }) {
+  const W = 560, H = 420, cx = W / 2, cy = H / 2 + 6, R = 140;
+  const n = data.length;
+  const pt = (i: number, r: number) => {
+    const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
+    return [cx + r * Math.cos(a), cy + r * Math.sin(a)] as const;
+  };
+  const poly = (r: (i: number) => number) =>
+    data.map((_, i) => pt(i, r(i)).map((v) => v.toFixed(1)).join(",")).join(" ");
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" role="img" aria-label="Big Five radar chart">
+      {[0.2, 0.4, 0.6, 0.8, 1].map((f) => (
+        <polygon key={f} points={poly(() => R * f)} fill="none" stroke="#cbd5e1" strokeWidth={1} />
+      ))}
+      {data.map((_, i) => {
+        const [x, y] = pt(i, R);
+        return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="#cbd5e1" strokeWidth={1} />;
+      })}
+      <polygon
+        points={poly((i) => (R * Math.max(0, Math.min(100, data[i].value))) / 100)}
+        fill="#8b5cf6"
+        fillOpacity={0.4}
+        stroke="#7c3aed"
+        strokeWidth={3}
+        strokeLinejoin="round"
+      />
+      {data.map((d, i) => {
+        const [x, y] = pt(i, R + 26);
+        const anchor = Math.abs(x - cx) < 1 ? "middle" : x > cx ? "start" : "end";
+        return (
+          <text
+            key={d.trait}
+            x={x}
+            y={y}
+            textAnchor={anchor}
+            dominantBaseline={y < cy - R / 2 ? "auto" : y > cy + R / 2 ? "hanging" : "middle"}
+            fill="#334155"
+            fontSize={19}
+            fontWeight={700}
+          >
+            {d.trait}
+          </text>
+        );
+      })}
+    </svg>
   );
 }
 
@@ -219,7 +275,7 @@ function SevenDays({ plan }: { plan: { theme: string; tasks: string[] }[] }) {
         </div>
         <div className="h-4 overflow-hidden rounded-full bg-teal-100">
           <motion.div
-            className="h-full rounded-full bg-gradient-to-r from-teal-400 to-emerald-500"
+            className="grad-teal h-full rounded-full"
             animate={{ width: total ? `${(count / total) * 100}%` : "0%" }}
           />
         </div>
@@ -433,7 +489,7 @@ export default function Results({
             <div key={s.id}>
               <p className="text-base font-bold text-slate-800 print:text-[1.05rem]">{s.dimension}</p>
               <p className="mb-2 text-base font-medium text-fuchsia-600 print:text-[0.95rem] print:leading-snug">{label}</p>
-              <div className="relative h-3 rounded-full bg-gradient-to-r from-violet-200 to-fuchsia-200">
+              <div className="grad-track relative h-3 rounded-full">
                 <div
                   className="absolute top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-violet-600 shadow"
                   style={{ left: `${v}%` }}
@@ -455,7 +511,7 @@ export default function Results({
         <motion.div
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="flex break-inside-avoid flex-col items-center justify-center rounded-[2.5rem] bg-violet-600 bg-gradient-to-br from-violet-600 via-fuchsia-500 to-amber-400 p-10 text-center text-white shadow-2xl shadow-violet-300 sm:p-12 print:rounded-[2rem] print:p-8 print:shadow-none"
+          className="flex break-inside-avoid flex-col items-center justify-center grad-cover rounded-[2.5rem] p-10 text-center text-white shadow-2xl shadow-violet-300 sm:p-12 print:rounded-[2rem] print:p-8 print:shadow-none"
         >
           <p className="mb-2 text-center text-sm font-bold uppercase tracking-[0.3em] text-white/90 print:text-[0.9rem]">
             Your profile type
@@ -485,20 +541,7 @@ export default function Results({
           <p className="mb-2 w-full text-center text-base text-slate-500 print:text-[1.05rem]">Your Big Five footprint</p>
           <div className="radar-box relative h-72 w-full print:h-auto print:min-h-0 print:flex-1">
             <div className="absolute inset-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart data={chartData} outerRadius="70%" margin={{ top: 14, right: 40, bottom: 14, left: 40 }}>
-                  <PolarGrid stroke="#cbd5e1" />
-                  <PolarAngleAxis dataKey="trait" tick={{ fill: "#334155", fontSize: 15, fontWeight: 700 }} />
-                  <Radar
-                    dataKey="value"
-                    stroke="#7c3aed"
-                    strokeWidth={3}
-                    fill="#8b5cf6"
-                    fillOpacity={0.4}
-                    isAnimationActive={false}
-                  />
-                </RadarChart>
-              </ResponsiveContainer>
+              <RadarSvg data={chartData} />
             </div>
           </div>
         </Reveal>
@@ -710,7 +753,7 @@ export default function Results({
                   </div>
                   <div className="mb-4 h-3 overflow-hidden rounded-full bg-fuchsia-100 print:mb-3">
                     <motion.div
-                      className="h-full rounded-full bg-gradient-to-r from-fuchsia-500 to-violet-500"
+                      className="grad-fit h-full rounded-full"
                       initial={{ width: 0 }}
                       animate={{ width: `${c.fit}%` }}
                       transition={{ duration: 1 }}
