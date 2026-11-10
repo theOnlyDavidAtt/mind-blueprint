@@ -3,11 +3,11 @@
 // (no P.O. box). An e-mail address is required too; a phone number is optional.
 
 export const OPERATOR = {
-  name: "FIRST NAME LAST NAME",
-  street: "Street and house number (or c/o address service)",
-  city: "Postal code and city",
+  name: "David Attah",
+  street: "Blochmannstr.",
+  city: "12209",
   country: "Germany",
-  email: "contact@example.com",
+  email: "ddavidatt@gmail.com",
   /** optional: leave empty ("") to hide it */
   phone: "",
   /** optional: Wirtschafts-Identifikationsnummer / VAT ID, once you have one. Leave "" to hide. */
