@@ -56,10 +56,10 @@ const PRINT_FONT_SCALE = 1;
  */
 /**
  * iPhone/iPad: Safari druckt die Schrift ca. 30 % kleiner als am PC. Nur dort zusätzlich vergrößern.
- *  - Seiten laufen auf dem iPhone über -> 1.15
- *  - Schrift noch zu klein             -> 1.35
+ *  - Seiten laufen auf dem iPhone über -> 1.3
+ *  - Schrift noch zu klein             -> 1.5
  */
-const IOS_PRINT_SCALE = 1.25;
+const IOS_PRINT_SCALE = 1.4;
 
 const LAYOUT_CSS = `
 .pdf-page{display:flex;flex-direction:column;gap:1.5rem}
