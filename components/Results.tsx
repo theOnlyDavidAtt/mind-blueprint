@@ -8,6 +8,14 @@ import { DISCLAIMER, SLIDERS, TRAIT_META, TRAIT_ORDER, archetype, band, type Sco
 import { INSIGHTS } from "@/lib/insights";
 import Paywall, { LockedTeaser } from "@/components/Paywall";
 import { encodeState } from "@/lib/persist";
+import { PAYMENT_KEY, PENDING_KEY, ls, verifyPayment } from "@/lib/payment";
+
+/**
+ * Built-in browsers of social apps (Instagram, TikTok, Facebook, Snapchat, …) and Android
+ * WebViews have no working print dialog, so "Save as PDF" is impossible there.
+ */
+const IN_APP_BROWSER =
+  /Instagram|FBAN|FBAV|FB_IAB|FBIOS|TikTok|musical_ly|Bytedance|BytedanceWebview|Snapchat|Pinterest|LinkedInApp|Line\/|Twitter|; wv\)/i;
 
 type Report = {
   executiveSummary?: string;
@@ -89,6 +97,9 @@ const LAYOUT_CSS = `
   .week>*{margin:0!important}
   .week>*:last-child:nth-child(odd){grid-column:span 2}
   .print-fixed-footer{position:fixed;left:0;right:0;bottom:0.7rem;padding:0 5.7%;text-align:center}
+  /* Radar-Diagramm: wurde in Bildschirmbreite gemessen (Handy = sehr schmal) -> im PDF auf die Box skalieren */
+  .radar-box .recharts-responsive-container,.radar-box .recharts-wrapper{width:100%!important;height:100%!important}
+  .radar-box svg.recharts-surface{width:100%!important;height:100%!important}
   /* Reveal-Animationen dürfen im PDF nie "unsichtbar" hängen bleiben */
   div[style*="opacity"]{opacity:1!important;transform:none!important}
 }
@@ -260,17 +271,23 @@ export default function Results({
   scores,
   sliders,
   onRetake,
+  notice,
 }: {
   scores: Scores;
   sliders: Record<string, number>;
   onRetake: () => void;
+  /** message from the checkout return (e.g. payment canceled) */
+  notice?: string;
 }) {
   const [report, setReport] = useState<Report | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [errMsg, setErrMsg] = useState("");
   const [unlocked, setUnlocked] = useState<boolean | null>(null);
   const [verifying, setVerifying] = useState(false);
-  const [payError, setPayError] = useState("");
+  const [payError, setPayError] = useState(notice ?? "");
+  const [paymentId, setPaymentId] = useState<string | null>(() => ls.get(PAYMENT_KEY));
+  const [pdfHelp, setPdfHelp] = useState(false);
+  const [copied, setCopied] = useState(false);
   const started = useRef(false);
   const arch = archetype(scores);
 
@@ -301,62 +318,36 @@ export default function Results({
   const verify = useCallback(async (paymentId: string) => {
     setVerifying(true);
     setPayError("");
-    try {
-      window.localStorage.setItem("mpa_pending_payment", paymentId);
-    } catch {
-      /* ignore */
-    }
-    for (let i = 0; i < 15; i++) {
-      try {
-        const res = await fetch("/api/whop/verify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ paymentId }),
-        });
-        if (res.ok) {
-          try {
-            window.localStorage.removeItem("mpa_pending_payment");
-          } catch {
-            /* ignore */
-          }
-          setUnlocked(true);
-          setVerifying(false);
-          confetti({ particleCount: 180, spread: 100, origin: { y: 0.4 } });
-          return;
-        }
-        if (res.status !== 202) {
-          const d = await res.json().catch(() => ({}));
-          setPayError(d.error ?? "Verification failed.");
-          setVerifying(false);
-          return;
-        }
-      } catch {
-        /* network hiccup: retry */
-      }
-      await new Promise((r) => setTimeout(r, 2000));
-    }
-    setPayError("We could not confirm your payment yet. Please reload this page in a minute. Your purchase is safe.");
+    const r = await verifyPayment(paymentId);
     setVerifying(false);
+    if (r.ok) {
+      setPaymentId(paymentId);
+      setUnlocked(true);
+      confetti({ particleCount: 180, spread: 100, origin: { y: 0.4 } });
+    } else {
+      setPayError(r.error);
+    }
   }, []);
 
   useEffect(() => {
     confetti({ particleCount: 150, spread: 90, origin: { y: 0.25 } });
+    // The checkout return link was already read (and removed) by app/page.tsx;
+    // a payment still waiting for confirmation is in localStorage.
     (async () => {
-      const sp = new URLSearchParams(window.location.search);
-      const returned = sp.get("payment_id") ?? sp.get("receipt_id");
-      if (["payment_id", "receipt_id", "status", "state_id", "paid"].some((k) => sp.has(k))) {
-        window.history.replaceState(null, "", window.location.pathname);
-      }
       let ok = false;
       try {
-        const r = await fetch("/api/access", { cache: "no-store" });
-        ok = (await r.json()).unlocked === true;
+        const d = await (await fetch("/api/access", { cache: "no-store" })).json();
+        ok = d.unlocked === true;
+        if (typeof d.paymentId === "string") {
+          setPaymentId(d.paymentId);
+          store.set(PAYMENT_KEY, d.paymentId);
+        }
       } catch {
         /* treat as locked */
       }
       setUnlocked(ok);
       if (!ok) {
-        const pending = returned ?? store.get("mpa_pending_payment");
+        const pending = store.get(PENDING_KEY);
         if (pending) verify(pending);
       }
     })();
@@ -397,15 +388,33 @@ export default function Results({
   }, [unlocked, scores, sliders]);
 
   const SHORT: Record<string, string> = { O: "Openness", C: "Conscient.", E: "Extraversion", A: "Agreeable.", S: "Stability" };
-  const printPdf = async () => {
-    // Einmal komplett durchscrollen, damit alle Scroll-Animationen (Balken etc.) ausgelöst sind
-    const step = window.innerHeight * 0.6;
-    for (let y = 0; y <= document.body.scrollHeight; y += step) {
-      window.scrollTo(0, y);
-      await new Promise((r) => setTimeout(r, 150));
+  // Link, der Ergebnis + Zahlung in einen anderen Browser mitnimmt (dort wird die Zahlung erneut bei Whop geprüft).
+  const reportLink = () => {
+    const q = new URLSearchParams({ mpa: encodeState({ scores, sliders }) });
+    if (paymentId) q.set("payment", paymentId);
+    return `${window.location.origin}/?${q.toString()}`;
+  };
+
+  const copyLink = async () => {
+    const url = reportLink();
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      window.prompt("Copy this link:", url);
     }
-    await new Promise((r) => setTimeout(r, 1300));
-    window.scrollTo(0, 0);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  };
+
+  const printPdf = () => {
+    // In Social-Media-Apps gibt es keinen Druckdialog -> Hinweis statt stillem Nichtstun
+    if (IN_APP_BROWSER.test(navigator.userAgent) || typeof window.print !== "function") {
+      setPdfHelp(true);
+      return;
+    }
+    // WICHTIG: print() direkt im Klick aufrufen. Früher lief vorher eine mehrsekündige
+    // Scroll-Schleife; danach blockieren iOS Safari & Co. den Druck, weil die Nutzer-Geste "abgelaufen" ist.
+    // Alle Animationen werden im Druck-CSS sichtbar erzwungen, Balken animieren beim Laden.
     window.print();
   };
 
@@ -474,7 +483,7 @@ export default function Results({
         <Reveal className={`${card} flex flex-col items-center text-center print:grow`}>
           <p className="w-full text-center text-lg font-bold text-slate-900 print:text-[1.4rem]">OCEAN profile</p>
           <p className="mb-2 w-full text-center text-base text-slate-500 print:text-[1.05rem]">Your Big Five footprint</p>
-          <div className="relative h-72 w-full print:h-auto print:min-h-0 print:flex-1">
+          <div className="radar-box relative h-72 w-full print:h-auto print:min-h-0 print:flex-1">
             <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart data={chartData} outerRadius="70%" margin={{ top: 14, right: 40, bottom: 14, left: 40 }}>
@@ -559,8 +568,7 @@ export default function Results({
                           className="h-full rounded-full"
                           style={{ background: TRAIT_META[k].color }}
                           initial={{ width: 0 }}
-                          whileInView={{ width: `${v}%` }}
-                          viewport={{ once: true }}
+                          animate={{ width: `${v}%` }}
                           transition={{ duration: 1 }}
                         />
                       </div>
@@ -704,8 +712,7 @@ export default function Results({
                     <motion.div
                       className="h-full rounded-full bg-gradient-to-r from-fuchsia-500 to-violet-500"
                       initial={{ width: 0 }}
-                      whileInView={{ width: `${c.fit}%` }}
-                      viewport={{ once: true }}
+                      animate={{ width: `${c.fit}%` }}
                       transition={{ duration: 1 }}
                     />
                   </div>
@@ -745,6 +752,33 @@ export default function Results({
         {DISCLAIMER}
       </p>
 
+      {pdfHelp && (
+        <div className="mt-8 rounded-3xl border border-violet-200 bg-violet-50 p-6 text-base text-slate-700 print:hidden">
+          <p className="mb-2 text-lg font-bold text-slate-900">Open in your browser to save the PDF</p>
+          <p className="mb-4">
+            This app&apos;s built-in browser can&apos;t create PDFs. Copy your personal link and open it in Safari or Chrome:
+            your results and your purchase come with it.
+          </p>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              type="button"
+              onClick={copyLink}
+              className="flex-1 rounded-2xl bg-violet-600 py-3 font-bold text-white"
+            >
+              {copied ? "Link copied ✓" : "Copy my link"}
+            </button>
+            <button
+              type="button"
+              onClick={() => window.print?.()}
+              className="flex-1 rounded-2xl border border-violet-200 bg-white py-3 font-semibold text-violet-700"
+            >
+              Try printing anyway
+            </button>
+          </div>
+          <p className="mt-3 text-xs text-slate-500">Tip: tap ⋯ or the share icon at the top and choose &quot;Open in browser&quot;.</p>
+        </div>
+      )}
+
       <div className="mt-8 flex flex-col gap-4 sm:flex-row print:hidden">
         <button
           type="button"
@@ -762,6 +796,14 @@ export default function Results({
           Retake
         </button>
       </div>
+      {unlocked === true && (
+        <p className="mt-4 text-center text-sm text-slate-500 print:hidden">
+          Want to open your report on another device?{" "}
+          <button type="button" onClick={copyLink} className="font-semibold text-violet-600 underline">
+            {copied ? "Link copied ✓" : "Copy your personal link"}
+          </button>
+        </p>
+      )}
     </div>
   );
 }

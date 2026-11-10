@@ -66,7 +66,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Payment is for a different product." }, { status: 403 });
   }
 
-  const out = NextResponse.json({ ok: true });
+  // The quiz result travels with the payment as checkout metadata (see Paywall.tsx), so it can be
+  // restored even when the buyer lands in a fresh tab or browser after an off-site step (3-D Secure, PayPal, Klarna).
+  const meta = p.metadata ?? p.checkout_configuration?.metadata ?? p.membership?.metadata ?? {};
+  const state = typeof meta?.mpa === "string" && meta.mpa.length <= 2000 ? meta.mpa : null;
+
+  const out = NextResponse.json({ ok: true, state });
   out.cookies.set(ACCESS_COOKIE, signAccess(paymentId), cookieOptions);
   return out;
 }

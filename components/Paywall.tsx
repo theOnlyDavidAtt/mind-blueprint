@@ -83,6 +83,7 @@ export default function Paywall({
           >
             <WhopCheckout
               plan={PLAN_ID}
+              metadata={returnState ? { mpa: returnState } : undefined}
               returnUrl={
                 typeof window !== "undefined"
                   ? `${window.location.origin}/${returnState ? `?mpa=${returnState}` : ""}`
