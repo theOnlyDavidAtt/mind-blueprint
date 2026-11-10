@@ -56,10 +56,9 @@ const PRINT_FONT_SCALE = 1;
  */
 /**
  * iPhone/iPad: Safari druckt die Schrift ca. 30 % kleiner als am PC. Nur dort zusätzlich vergrößern.
- *  - Seiten laufen auf dem iPhone über -> 1.3
- *  - Schrift noch zu klein             -> 1.5
+ *  - Getestet: 1.25 ok. 1.4 bricht den Seitenumbruch in iOS Safari (leere Seiten, fehlende Abschnitte).
  */
-const IOS_PRINT_SCALE = 1.4;
+const IOS_PRINT_SCALE = 1.25;
 
 const LAYOUT_CSS = `
 .pdf-page{display:flex;flex-direction:column;gap:1.5rem}
