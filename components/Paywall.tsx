@@ -35,6 +35,8 @@ export default function Paywall({
   returnState?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [agreed, setAgreed] = useState(false);
+  const [consentAt, setConsentAt] = useState("");
 
   return (
     <motion.div
@@ -60,10 +62,37 @@ export default function Paywall({
       </ul>
 
       {!open && !verifying && (
+        // Pflicht für digitale Inhalte (§ 356 Abs. 5 BGB): ausdrückliche Zustimmung + Kenntnis vom Verlust des Widerrufsrechts
+        <label className="mb-4 flex cursor-pointer gap-3 rounded-2xl bg-white/70 p-3 text-xs leading-relaxed text-slate-600">
+          <input
+            type="checkbox"
+            checked={agreed}
+            onChange={(e) => setAgreed(e.target.checked)}
+            className="mt-0.5 h-5 w-5 shrink-0 accent-violet-600"
+          />
+          <span>
+            I agree to the{" "}
+            <a href="/terms" target="_blank" className="font-semibold text-violet-600 underline">
+              Terms
+            </a>{" "}
+            and expressly request immediate access to my report. I understand that I thereby lose my{" "}
+            <a href="/terms#withdrawal" target="_blank" className="font-semibold text-violet-600 underline">
+              right of withdrawal
+            </a>
+            .
+          </span>
+        </label>
+      )}
+
+      {!open && !verifying && (
         <button
           type="button"
-          onClick={() => setOpen(true)}
-          className="w-full rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-500 py-3.5 text-lg font-bold text-white shadow-lg shadow-violet-300"
+          disabled={!agreed}
+          onClick={() => {
+            setConsentAt(new Date().toISOString());
+            setOpen(true);
+          }}
+          className="w-full rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-500 py-3.5 text-lg font-bold text-white shadow-lg shadow-violet-300 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
         >
           Unlock for {PRICE}
         </button>
@@ -83,7 +112,8 @@ export default function Paywall({
           >
             <WhopCheckout
               plan={PLAN_ID}
-              metadata={returnState ? { mpa: returnState } : undefined}
+              // stored with the payment at Whop: quiz result (for restoring) + proof of the withdrawal consent
+              metadata={{ ...(returnState ? { mpa: returnState } : {}), withdrawal_waiver_consent: consentAt }}
               returnUrl={
                 typeof window !== "undefined"
                   ? `${window.location.origin}/${returnState ? `?mpa=${returnState}` : ""}`
