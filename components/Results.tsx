@@ -54,6 +54,15 @@ const PRINT_FONT_SCALE = 1;
  * Die Grids sind hier als eigene Klassen definiert (statt md:/print: in Tailwind),
  * damit sich Breakpoints und Print-Regeln nie gegenseitig überschreiben.
  */
+/**
+ * iOS Safari rechnet "vw" beim Drucken mit der Handy-Bildschirmbreite statt der Papierbreite
+ * -> Schrift im PDF viel zu klein. Media-Queries sehen dagegen die echte Seitenbreite.
+ * Deshalb nur auf iOS: Schriftgröße in 20px-Stufen aus der echten Seitenbreite ableiten.
+ */
+const IOS_PRINT_CSS = `@supports (-webkit-touch-callout: none){${Array.from({ length: 60 }, (_, i) => 300 + i * 20)
+  .map((w) => `@media print and (min-width:${w}px){html{font-size:${(((w + 10) / 49.625) * PRINT_FONT_SCALE).toFixed(2)}px!important}}`)
+  .join("")}}`;
+
 const LAYOUT_CSS = `
 .pdf-page{display:flex;flex-direction:column;gap:1.5rem}
 .grid-2,.grid-3,.in-2,.in-3,.in-fr{display:grid;gap:1.5rem}
@@ -504,7 +513,7 @@ export default function Results({
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8 print:m-0 print:w-full print:max-w-none print:overflow-visible print:p-0">
-      <style>{LAYOUT_CSS}</style>
+      <style>{LAYOUT_CSS + IOS_PRINT_CSS}</style>
 
       {/* ================= SEITE 1: Deckblatt ================= */}
       <Page>
